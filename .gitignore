@@ -1,0 +1,60 @@
+# dependencies
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# build outputs and caches
+.next/
+.next-dev/
+**/.next/
+**/.next-dev/
+dist/
+**/dist/
+coverage/
+**/coverage/
+.turbo/
+.cache/
+.vercel/
+.railway/
+tmp/
+temp/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# env and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# runtime state
+data/
+logs/
+storage/
+codex-home/
+.agent-session/
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local agent/design working state
+.impeccable/
+
+# generated QA captures and local previews
+favicon-*.png
+design/
+design-qa.md
+
+# local/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

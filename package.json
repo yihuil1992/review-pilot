@@ -1,0 +1,23 @@
+{
+  "name": "review-pilot",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @review-pilot/api --filter @review-pilot/worker --filter @review-pilot/web dev",
+    "dev:api": "pnpm --filter @review-pilot/api dev",
+    "dev:worker": "pnpm --filter @review-pilot/worker dev",
+    "dev:web": "pnpm --filter @review-pilot/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @review-pilot/db prisma generate",
+    "db:migrate": "pnpm --filter @review-pilot/db prisma migrate dev",
+    "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}
+

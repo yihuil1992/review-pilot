@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Review Pilot">
+  <defs>
+    <linearGradient id="bubble" x1="76" y1="428" x2="426" y2="66" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#007195" />
+      <stop offset="0.56" stop-color="#00799F" />
+      <stop offset="1" stop-color="#00688B" />
+    </linearGradient>
+    <linearGradient id="ink" x1="172" y1="258" x2="344" y2="154" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111B28" />
+      <stop offset="1" stop-color="#172333" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M418 245c0 93-76 168-171 168-32 0-62-8-88-24L58 421l35-96a165 165 0 0 1-21-82c0-93 76-168 171-168s175 76 175 170Z"
+    fill="none"
+    stroke="url(#bubble)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="58"
+  />
+  <path
+    d="m168 245 58 58 139-145"
+    fill="none"
+    stroke="url(#ink)"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="42"
+  />
+</svg>

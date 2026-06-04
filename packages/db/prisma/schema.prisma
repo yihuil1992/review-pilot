@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReviewStatus {
+  new
+  analysis_pending
+  draft_ready
+  regeneration_pending
+  publishing
+  published
+  manual_handled
+  deferred
+  failed
+}
+
+enum ReviewSeverity {
+  green
+  yellow
+  red
+}
+
+enum ReviewPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+model OwnerUser {
+  id           String   @id @default(cuid())
+  email        String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SecretValue {
+  id         String   @id @default(cuid())
+  scope      String
+  key        String
+  ciphertext String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  googleRefreshAccounts GoogleAccount[] @relation("GoogleRefreshToken")
+  twilioConfigs         TwilioConfig[]  @relation("TwilioAuthToken")
+
+  @@unique([scope, key])
+}
+
+model GoogleAccount {
+  id                   String    @id @default(cuid())
+  googleUserId         String    @unique
+  email                String
+  refreshTokenSecretId String
+  accessTokenEncrypted String?
+  tokenExpiresAt       DateTime?
+  status               String    @default("active")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  refreshTokenSecret SecretValue        @relation("GoogleRefreshToken", fields: [refreshTokenSecretId], references: [id])
+  businessLocations  BusinessLocation[]
+}
+
+model BusinessLocation {
+  id                 String   @id @default(cuid())
+  googleAccountId    String
+  googleLocationName String
+  googleAccountName  String?
+  placeId            String?
+  businessName       String
+  address            String?
+  googleOpenStatus   String?
+  enabled            Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  googleAccount GoogleAccount @relation(fields: [googleAccountId], references: [id], onDelete: Cascade)
+  reviews       Review[]
+
+  @@unique([googleAccountId, googleLocationName])
+  @@index([enabled])
+  @@index([googleOpenStatus])
+}
+
+model Review {
+  id                 String       @id @default(cuid())
+  businessLocationId String
+  googleReviewId     String
+  authorName         String?
+  rating             Int
+  reviewText         String?
+  reviewCreatedAt    DateTime?
+  status             ReviewStatus @default(new)
+  latestDraftId      String?
+  publishedReply     String?
+  replyPublishedAt   DateTime?
+  notifyAt           DateTime?
+  notified           Boolean      @default(false)
+  notificationSentAt DateTime?
+  notificationStatus String       @default("none")
+  notificationAttempts Int        @default(0)
+  notificationLastError String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  businessLocation BusinessLocation @relation(fields: [businessLocationId], references: [id], onDelete: Cascade)
+  analysis         ReviewAnalysis?
+  drafts           ReplyDraft[]
+  actions          ReviewAction[]
+  jobs             JobRun[]
+
+  @@unique([businessLocationId, googleReviewId])
+  @@index([status])
+  @@index([notifyAt, notified])
+  @@index([notificationStatus, notifyAt])
+}
+
+model ReviewAnalysis {
+  id          String         @id @default(cuid())
+  reviewId    String         @unique
+  severity    ReviewSeverity
+  priority    ReviewPriority
+  issues      String[]
+  positives   String[]
+  keywords    String[]
+  publishRisk Json
+  reasoning   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+}
+
+model ReplyDraft {
+  id          String   @id @default(cuid())
+  reviewId    String
+  body        String
+  instruction String?
+  version     Int
+  createdAt   DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, version])
+}
+
+model ReviewAction {
+  id        String   @id @default(cuid())
+  reviewId  String
+  type      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
+}
+
+model JobRun {
+  id                  String    @id @default(cuid())
+  reviewId            String?
+  type                String
+  status              String
+  provider            String?
+  model               String?
+  promptVersion       String?
+  outputSchemaVersion String?
+  transcript          String?
+  errorCode           String?
+  errorMessage        String?
+  startedAt           DateTime  @default(now())
+  finishedAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  review Review? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  @@index([type, status])
+  @@index([reviewId])
+}
+
+model TwilioConfig {
+  id                String   @id @default("singleton")
+  accountSid        String
+  authTokenSecretId String
+  fromNumber        String
+  notifyToNumber    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  authTokenSecret SecretValue @relation("TwilioAuthToken", fields: [authTokenSecretId], references: [id])
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+}
