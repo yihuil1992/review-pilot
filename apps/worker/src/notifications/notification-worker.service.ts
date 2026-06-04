@@ -1,8 +1,10 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
+  canSendReviewNotification,
   notificationJobNames,
   notificationQueueName,
+  notifiableReviewStatuses,
   type NotificationSendJobData
 } from "@review-pilot/shared";
 import { Prisma, ReviewStatus } from "@review-pilot/db";
@@ -10,7 +12,7 @@ import { Job, Queue, Worker } from "bullmq";
 import { PrismaService } from "../prisma.service.js";
 import { TwilioService } from "../twilio/twilio.service.js";
 
-const notifiableStatuses: ReviewStatus[] = ["draft_ready", "failed", "deferred"];
+const notifiableStatuses = [...notifiableReviewStatuses] as ReviewStatus[];
 
 @Injectable()
 export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -105,7 +107,7 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
       where: { id: reviewId },
       select: { id: true, notificationStatus: true, status: true }
     });
-    if (!review || review.notificationStatus !== "pending" || !notifiableStatuses.includes(review.status)) {
+    if (!review || review.notificationStatus !== "pending" || !canSendReviewNotification(review.status)) {
       return {
         ok: true,
         skipped: true,

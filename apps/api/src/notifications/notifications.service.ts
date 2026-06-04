@@ -1,4 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { notificationEligibilityReason } from "@review-pilot/shared";
 import { PrismaService } from "../prisma.service.js";
 import { NotificationQueueService } from "./notification-queue.service.js";
 
@@ -50,19 +51,24 @@ export class NotificationsService {
     }, { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0 });
 
     return {
-      tasks: reviews.map((review) => ({
-        reviewId: review.id,
-        business: review.businessLocation.businessName,
-        author: review.authorName ?? "Customer",
-        rating: review.rating,
-        reviewStatus: review.status,
-        notificationStatus: review.notificationStatus,
-        notifyAt: review.notifyAt?.toISOString() ?? null,
-        notificationSentAt: review.notificationSentAt?.toISOString() ?? null,
-        notificationAttempts: review.notificationAttempts,
-        notificationLastError: review.notificationLastError,
-        severity: review.analysis?.severity ?? null
-      })),
+      tasks: reviews.map((review) => {
+        const sendDisabledReason = notificationEligibilityReason(review.status);
+        return {
+          reviewId: review.id,
+          business: review.businessLocation.businessName,
+          author: review.authorName ?? "Customer",
+          rating: review.rating,
+          reviewStatus: review.status,
+          notificationStatus: review.notificationStatus,
+          notifyAt: review.notifyAt?.toISOString() ?? null,
+          notificationSentAt: review.notificationSentAt?.toISOString() ?? null,
+          notificationAttempts: review.notificationAttempts,
+          notificationLastError: review.notificationLastError,
+          severity: review.analysis?.severity ?? null,
+          sendAvailable: sendDisabledReason === null,
+          sendDisabledReason
+        };
+      }),
       counts
     };
   }
@@ -95,6 +101,7 @@ export class NotificationsService {
   }
 
   async sendNow(reviewId: string) {
+    await this.assertSendable(reviewId);
     await this.prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -126,6 +133,7 @@ export class NotificationsService {
   }
 
   async rerun(reviewId: string) {
+    await this.assertSendable(reviewId);
     const review = await this.prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -143,5 +151,19 @@ export class NotificationsService {
       notificationStatus: review.notificationStatus,
       notifyAt: review.notifyAt?.toISOString() ?? null
     };
+  }
+
+  private async assertSendable(reviewId: string) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: { id: true, status: true }
+    });
+    if (!review) {
+      throw new NotFoundException("Review not found");
+    }
+    const reason = notificationEligibilityReason(review.status);
+    if (reason) {
+      throw new ConflictException(reason);
+    }
   }
 }

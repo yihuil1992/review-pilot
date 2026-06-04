@@ -20,6 +20,8 @@ type NotificationTask = {
   notificationAttempts: number;
   notificationLastError: string | null;
   severity: string | null;
+  sendAvailable?: boolean;
+  sendDisabledReason?: string | null;
 };
 
 type Message = {
@@ -272,52 +274,59 @@ export function NotificationsClient() {
 
         <div className="task-list">
           {tasks.length === 0 ? <div className="notice">No notification tasks in this view.</div> : null}
-          {tasks.map((task) => (
-            <article className="task-card" key={task.reviewId}>
-              <div className="task-icon" data-status={task.notificationStatus}>
-                {task.notificationStatus === "sent" ? <Send aria-hidden="true" /> : <Zap aria-hidden="true" />}
-              </div>
-              <div className="task-main">
-                <div className="task-title-row">
-                  <h3>{task.business}</h3>
-                  <span className={statusChipClass(task.notificationStatus)}>{task.notificationStatus}</span>
-                  {task.severity ? <span className={severityChipClass(task.severity)}>{task.severity}</span> : null}
+          {tasks.map((task) => {
+            const sendUnavailable = task.sendAvailable === false;
+            const sendActionPath = `/notifications/tasks/${task.reviewId}/send-now`;
+            return (
+              <article className="task-card" key={task.reviewId}>
+                <div className="task-icon" data-status={task.notificationStatus}>
+                  {task.notificationStatus === "sent" ? <Send aria-hidden="true" /> : <Zap aria-hidden="true" />}
                 </div>
-                <p>{task.author} · {task.rating}/5 · review {task.reviewStatus}</p>
-                <p>Due {formatDate(task.notifyAt)} · sent {formatDate(task.notificationSentAt)} · attempts {task.notificationAttempts}</p>
-                {task.notificationLastError ? <div className="notice error">{task.notificationLastError}</div> : null}
-              </div>
-              <div className="task-actions">
-                <button
-                  className="button"
-                  disabled={Boolean(busy) || task.notificationStatus === "sent"}
-                  type="button"
-                  onClick={() => post(`/notifications/tasks/${task.reviewId}/send-now`, "Notification send queued")}
-                >
-                  <Send aria-hidden="true" />
-                  Send
-                </button>
-                <button
-                  className="button"
-                  disabled={Boolean(busy) || task.notificationStatus === "sent" || task.notificationStatus === "canceled"}
-                  type="button"
-                  onClick={() => post(`/notifications/tasks/${task.reviewId}/cancel`, "Notification canceled")}
-                >
-                  <Ban aria-hidden="true" />
-                  Cancel
-                </button>
-                <button
-                  className="button"
-                  disabled={Boolean(busy) || task.notificationStatus === "pending"}
-                  type="button"
-                  onClick={() => post(`/notifications/tasks/${task.reviewId}/rerun`, "Notification requeued")}
-                >
-                  <RotateCcw aria-hidden="true" />
-                  Rerun
-                </button>
-              </div>
-            </article>
-          ))}
+                <div className="task-main">
+                  <div className="task-title-row">
+                    <h3>{task.business}</h3>
+                    <span className={statusChipClass(task.notificationStatus)}>{task.notificationStatus}</span>
+                    {task.severity ? <span className={severityChipClass(task.severity)}>{task.severity}</span> : null}
+                  </div>
+                  <p>{task.author} · {task.rating}/5 · review {reviewStatusLabel(task.reviewStatus)}</p>
+                  <p>Due {formatDate(task.notifyAt)} · sent {formatDate(task.notificationSentAt)} · attempts {task.notificationAttempts}</p>
+                  {sendUnavailable && task.sendDisabledReason ? <div className="task-note warning">{task.sendDisabledReason}</div> : null}
+                  {task.notificationLastError ? <div className="notice error">{task.notificationLastError}</div> : null}
+                </div>
+                <div className="task-actions">
+                  <button
+                    className="button"
+                    disabled={Boolean(busy) || task.notificationStatus === "sent" || sendUnavailable}
+                    title={sendUnavailable ? task.sendDisabledReason ?? "This notification cannot be sent." : undefined}
+                    type="button"
+                    onClick={() => post(sendActionPath, "Notification send queued")}
+                  >
+                    <Send aria-hidden="true" />
+                    Send
+                  </button>
+                  <button
+                    className="button"
+                    disabled={Boolean(busy) || task.notificationStatus === "sent" || task.notificationStatus === "canceled"}
+                    type="button"
+                    onClick={() => post(`/notifications/tasks/${task.reviewId}/cancel`, "Notification canceled")}
+                  >
+                    <Ban aria-hidden="true" />
+                    Cancel
+                  </button>
+                  <button
+                    className="button"
+                    disabled={Boolean(busy) || task.notificationStatus === "pending" || sendUnavailable}
+                    title={sendUnavailable ? task.sendDisabledReason ?? "This notification cannot be rerun." : undefined}
+                    type="button"
+                    onClick={() => post(`/notifications/tasks/${task.reviewId}/rerun`, "Notification requeued")}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    Rerun
+                  </button>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -353,6 +362,16 @@ function severityChipClass(severity: string): string {
     return "rp-chip success";
   }
   return "rp-chip warning";
+}
+
+function reviewStatusLabel(status: string): string {
+  if (status === "published") {
+    return "reply published";
+  }
+  if (status === "manual_handled") {
+    return "manually handled";
+  }
+  return status.replaceAll("_", " ");
 }
 
 function reviewSyncChipClass(status: ReviewSyncStatus["status"]): string {
