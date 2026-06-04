@@ -149,9 +149,12 @@ model ReviewAnalysis {
 model ReplyDraft {
   id          String   @id @default(cuid())
   reviewId    String
+  aiBody      String
   body        String
   instruction String?
   version     Int
+  userEdited  Boolean  @default(false)
+  editedAt    DateTime?
   createdAt   DateTime @default(now())
 
   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)

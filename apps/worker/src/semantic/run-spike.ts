@@ -1,9 +1,12 @@
 import { config } from "dotenv";
 import { CodexSubscriptionEngine } from "./codex-subscription.engine.js";
+import { defaultCodexSettings, type SettingsService } from "../settings/settings.service.js";
 
 config();
 
-const engine = new CodexSubscriptionEngine();
+const engine = new CodexSubscriptionEngine({
+  getCodexSettings: async () => defaultCodexSettings()
+} as SettingsService);
 
 const result = await engine.analyzeReview({
   businessName: "Shaking Crab Williamsburg",

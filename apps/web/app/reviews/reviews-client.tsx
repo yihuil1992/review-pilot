@@ -2,11 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, CheckCircle2, ChevronDown, ExternalLink, MapPin, MessageSquareText, RefreshCw, ShieldAlert, Sparkles, Star, X } from "lucide-react";
+import { Check, CheckCircle2, ChevronDown, ExternalLink, Loader2, MapPin, MessageSquareText, RefreshCw, ShieldAlert, Sparkles, Star, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { demoDraft, demoLocations, demoReviews } from "@/lib/demo-data";
 import { demoMode } from "@/lib/demo-mode";
+import { assessReplyPublishRisk } from "@/lib/reply-risk";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
@@ -25,7 +26,24 @@ type ReviewDto = {
     priority: string;
     publishRisk: { requiresHumanReview: boolean; reasons: string[] };
   };
-  draft: null | { body: string; version: number; instruction: string | null };
+  draft: null | {
+    id?: string;
+    aiBody?: string;
+    body: string;
+    version: number;
+    instruction: string | null;
+    userEdited?: boolean;
+    editedAt?: string | null;
+  };
+  semanticJob?: null | {
+    id: string;
+    type: string;
+    status: string;
+    errorCode: string | null;
+    errorMessage: string | null;
+    startedAt: string | null;
+    finishedAt: string | null;
+  };
   publishedReply: string | null;
   publishTestMode?: boolean;
 };
@@ -38,6 +56,8 @@ type BusinessLocation = {
 };
 
 type ReviewFilter = "all" | "highRisk" | "needsReply" | "draftReady";
+type DraftEdit = { version: number; body: string };
+type ReviewsPayload = { items?: ReviewDto[]; total?: number; limit?: number };
 
 export function ReviewsClient() {
   const searchParams = useSearchParams();
@@ -45,6 +65,7 @@ export function ReviewsClient() {
   const signedLink = searchParams.get("link");
   const locationMenuRef = useRef<HTMLDivElement | null>(null);
   const [reviews, setReviews] = useState<ReviewDto[]>([]);
+  const [reviewTotal, setReviewTotal] = useState(0);
   const [signedReview, setSignedReview] = useState<ReviewDto | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,6 +75,7 @@ export function ReviewsClient() {
   const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [draftEdits, setDraftEdits] = useState<Record<string, DraftEdit>>({});
 
   useEffect(() => {
     if (signedReviewId && signedLink) {
@@ -150,11 +172,29 @@ export function ReviewsClient() {
     [selectedId, signedReview, visibleReviews]
   );
   const selectedReadOnly = Boolean(selected && isReviewComplete(selected));
+  const selectedDraftPending = Boolean(selected && isSemanticPending(selected));
+  const selectedDraftEdited = Boolean(selected && isDraftEdited(selected));
   const locationOptions = useMemo(
     () => [{ id: "all", businessName: "All locations" }, ...locations],
     [locations]
   );
   const selectedLocationLabel = locationOptions.find((location) => location.id === locationId)?.businessName ?? "All locations";
+
+  useEffect(() => {
+    if (!selected || !isSemanticPending(selected)) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      if (signedReviewId && signedLink) {
+        void loadSignedReview(signedReviewId, signedLink);
+      } else {
+        void loadReviews();
+      }
+    }, 2500);
+
+    return () => window.clearInterval(interval);
+  }, [selected?.id, selected?.status, signedReviewId, signedLink, locationId]);
 
   async function loadSignedReview(reviewId: string, link: string) {
     if (demoMode) {
@@ -180,6 +220,7 @@ export function ReviewsClient() {
         ? (demoReviews as unknown as ReviewDto[])
         : (demoReviews as unknown as ReviewDto[]).filter((review) => review.businessLocationId === locationId);
       setReviews(data);
+      setReviewTotal(data.length);
       setSelectedId((current) => {
         if (current && data.some((review) => review.id === current)) {
           return current;
@@ -191,17 +232,19 @@ export function ReviewsClient() {
 
     const query = locationId === "all" ? "" : `?locationId=${encodeURIComponent(locationId)}`;
     const response = await fetch(`${apiBase}/reviews${query}`, { credentials: "include" });
-    const data = await response.json().catch(() => []);
+    const data: unknown = await response.json().catch(() => []);
     if (!response.ok) {
-      toast.error(data?.message ?? "Login required or reviews failed to load");
+      toast.error(responseMessage(data) ?? "Login required or reviews failed to load");
       return;
     }
-    setReviews(data);
+    const payload = normalizeReviewsPayload(data);
+    setReviews(payload.items);
+    setReviewTotal(payload.total);
     setSelectedId((current) => {
-      if (current && data.some((review: ReviewDto) => review.id === current)) {
+      if (current && payload.items.some((review: ReviewDto) => review.id === current)) {
         return current;
       }
-      return data.find((review: ReviewDto) => review.id === signedReviewId)?.id ?? data[0]?.id ?? null;
+      return payload.items.find((review: ReviewDto) => review.id === signedReviewId)?.id ?? payload.items[0]?.id ?? null;
     });
   }
 
@@ -300,9 +343,12 @@ export function ReviewsClient() {
       return {
         ...review,
         draft: {
+          aiBody: demoDraft(review.author, review.business, instruction),
           body: demoDraft(review.author, review.business, instruction),
           version: nextVersion,
-          instruction: instruction || null
+          instruction: instruction || null,
+          userEdited: false,
+          editedAt: null
         }
       };
     };
@@ -311,8 +357,78 @@ export function ReviewsClient() {
     setSignedReview((current) => (current ? updateReview(current) : current));
   }
 
+  function findReview(reviewId: string) {
+    return signedReview?.id === reviewId
+      ? signedReview
+      : reviews.find((review) => review.id === reviewId) ?? null;
+  }
+
+  function draftEditValue(review: ReviewDto): string {
+    const edit = draftEdits[review.id];
+    if (review.draft && edit?.version === review.draft.version) {
+      return edit.body;
+    }
+    return review.draft?.body ?? "";
+  }
+
+  function setDraftEdit(review: ReviewDto, body: string) {
+    const draft = review.draft;
+    if (!draft) {
+      return;
+    }
+    setDraftEdits((current) => ({
+      ...current,
+      [review.id]: { version: draft.version, body }
+    }));
+  }
+
+  function clearDraftEdit(reviewId: string) {
+    setDraftEdits((current) => {
+      const next = { ...current };
+      delete next[reviewId];
+      return next;
+    });
+  }
+
+  function isDraftEdited(review: ReviewDto): boolean {
+    if (!review.draft) {
+      return false;
+    }
+    return normalizeDraftBody(draftEditValue(review)) !== normalizeDraftBody(review.draft.aiBody ?? review.draft.body);
+  }
+
+  function publishBody(review: ReviewDto): string {
+    return draftEditValue(review).trim();
+  }
+
+  function publishActionLabel(review: ReviewDto, testMode: boolean): string {
+    if (testMode) {
+      return isDraftEdited(review) ? "Test edited reply" : "Test publish";
+    }
+    return isDraftEdited(review) ? "Publish edited reply" : "Publish AI draft";
+  }
+
+  function publishSuccessLabel(review: ReviewDto): string {
+    return isDraftEdited(review) ? "Edited reply published" : "AI draft published";
+  }
+
   async function generate(reviewId: string) {
-    await post(signedActionPath(reviewId, "generate"), {}, "AI draft generated");
+    const review = findReview(reviewId);
+    if (review?.draft && isDraftEdited(review)) {
+      const confirmed = window.confirm("Generate a new AI draft? Your edited text will be saved, then replaced when the new draft is ready.");
+      if (!confirmed) {
+        return;
+      }
+    }
+    markReviewSemanticPending(reviewId, "analysis_pending");
+    const completed = await post(
+      signedActionPath(reviewId, "generate"),
+      review?.draft ? { currentDraftBody: draftEditValue(review) } : {},
+      "AI draft queued"
+    );
+    if (!completed) {
+      await refreshCurrentReviews();
+    }
   }
 
   async function manualHandled(reviewId: string) {
@@ -323,17 +439,30 @@ export function ReviewsClient() {
   }
 
   async function publish(review: ReviewDto) {
-    const body = review.draft?.body;
+    const body = publishBody(review);
     if (!body) {
       toast.error("No AI draft is available to publish");
       return;
     }
+    const manualRisk = assessReplyPublishRisk({
+      rating: review.rating,
+      reviewText: review.text,
+      replyBody: body,
+      aiBody: review.draft?.aiBody ?? review.draft?.body ?? null
+    });
+    if (manualRisk.requiresHumanReview) {
+      const confirmed = window.confirm(`Review this edited reply before publishing:\n\n${manualRisk.reasons.join("\n")}`);
+      if (!confirmed) {
+        return;
+      }
+    }
     const completed = await post(
       signedActionPath(review.id, "publish"),
       { body },
-      publishTestMode ? "Test publish recorded. No Google reply was sent." : "Reply published"
+      publishTestMode ? "Test publish recorded. No Google reply was sent." : publishSuccessLabel(review)
     );
     if (completed) {
+      clearDraftEdit(review.id);
       setMobileDetailOpen(false);
     }
   }
@@ -343,8 +472,32 @@ export function ReviewsClient() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const instruction = String(form.get("instruction") ?? "");
-    await post(signedActionPath(reviewId, "regenerate"), { instruction }, "AI draft regenerated");
-    formElement.reset();
+    const review = findReview(reviewId);
+    markReviewSemanticPending(reviewId, "regeneration_pending");
+    const completed = await post(
+      signedActionPath(reviewId, "regenerate"),
+      { instruction, ...(review?.draft ? { currentDraftBody: draftEditValue(review) } : {}) },
+      "AI draft regeneration queued"
+    );
+    if (completed) {
+      formElement.reset();
+    } else {
+      await refreshCurrentReviews();
+    }
+  }
+
+  async function refreshCurrentReviews() {
+    if (signedReviewId && signedLink) {
+      await loadSignedReview(signedReviewId, signedLink);
+      return;
+    }
+    await loadReviews();
+  }
+
+  function markReviewSemanticPending(reviewId: string, status: "analysis_pending" | "regeneration_pending") {
+    const updateReview = (review: ReviewDto): ReviewDto => review.id === reviewId ? { ...review, status } : review;
+    setReviews((current) => current.map(updateReview));
+    setSignedReview((current) => current ? updateReview(current) : current);
   }
 
   function signedActionPath(reviewId: string, action: "generate" | "regenerate" | "publish" | "manual-handled") {
@@ -362,7 +515,7 @@ export function ReviewsClient() {
             <div className="panel-head">
               <div>
                 <h2>Queue</h2>
-                <p>{`Showing ${reviews.length || 0} unhandled`}</p>
+                <p>{reviewQueueSummary(reviews.length, reviewTotal)}</p>
               </div>
               <button className="icon-button" type="button" onClick={loadReviews} aria-label="Refresh reviews">
                 <RefreshCw aria-hidden="true" />
@@ -506,31 +659,57 @@ export function ReviewsClient() {
               <div className="panel-head compact">
                 <div>
                   <h3>AI draft</h3>
-                  <p>{selected.draft ? `Version ${selected.draft.version}` : "No draft yet"}</p>
+                  <p>{draftStatusText(selected)}</p>
                 </div>
                 {!selectedReadOnly ? (
-                  <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
-                    <Sparkles aria-hidden="true" />
-                    {selected.draft ? "Generate new draft" : "Generate reply draft"}
+                  <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => generate(selected.id)}>
+                    {selectedDraftPending ? <Loader2 className="button-spinner" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+                    {selectedDraftPending ? draftActionLabel(selected) : selected.draft ? "Generate new draft" : "Generate reply draft"}
                   </button>
                 ) : null}
               </div>
-              <textarea readOnly value={selected.draft?.body ?? "No draft yet."} aria-label="AI draft" />
+              {selectedDraftPending ? (
+                <div className="draft-pending-notice" role="status">
+                  <Loader2 aria-hidden="true" />
+                  <span>{draftPendingNotice(selected)}</span>
+                </div>
+              ) : null}
+              {isSemanticFailed(selected) ? (
+                <div className="draft-failed-notice" role="status">
+                  <ShieldAlert aria-hidden="true" />
+                  <span>{semanticFailureMessage(selected)}</span>
+                </div>
+              ) : null}
+              {selectedDraftEdited ? (
+                <div className="draft-edit-notice" role="status">
+                  <CheckCircle2 aria-hidden="true" />
+                  <span>Edited reply will be used for publish and draft revision.</span>
+                </div>
+              ) : null}
+              <textarea
+                readOnly={!canEditDraft(selected, selectedReadOnly)}
+                value={selected.draft ? draftEditValue(selected) : draftTextareaValue(selected)}
+                aria-label="Reply draft editor"
+                onChange={(event) => setDraftEdit(selected, event.target.value)}
+              />
               {selected.draft && !selectedReadOnly ? (
                 <form className="regenerate-row" onSubmit={(event) => regenerate(event, selected.id)}>
-                  <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" required />
-                  <button className="button" disabled={Boolean(busy)} type="submit">Revise draft</button>
+                  <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" disabled={selectedDraftPending} required />
+                  <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="submit">
+                    {selected.status === "regeneration_pending" ? <Loader2 className="button-spinner" aria-hidden="true" /> : null}
+                    {selected.status === "regeneration_pending" ? "Revising" : "Revise draft"}
+                  </button>
                 </form>
               ) : null}
             </section>
 
             {!selectedReadOnly ? (
               <div className="desktop-action-row">
-                <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
+                <button className="button primary" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => publish(selected)}>
                   <MessageSquareText aria-hidden="true" />
-                  {publishTestMode ? "Test publish" : "Publish reply"}
+                  {publishActionLabel(selected, publishTestMode)}
                 </button>
-                <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
+                <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => manualHandled(selected.id)}>
                   <CheckCircle2 aria-hidden="true" />
                   Mark as handled
                 </button>
@@ -606,29 +785,55 @@ export function ReviewsClient() {
                 <div className="panel-head compact">
                   <div>
                     <h3>AI draft</h3>
-                    <p>{selected.draft ? `Version ${selected.draft.version}` : "No draft yet"}</p>
+                    <p>{draftStatusText(selected)}</p>
                   </div>
-                  <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
-                    <Sparkles aria-hidden="true" />
-                    {selected.draft ? "Generate new draft" : "Generate reply draft"}
+                  <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => generate(selected.id)}>
+                    {selectedDraftPending ? <Loader2 className="button-spinner" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+                    {selectedDraftPending ? draftActionLabel(selected) : selected.draft ? "Generate new draft" : "Generate reply draft"}
                   </button>
                 </div>
-                <textarea readOnly value={selected.draft?.body ?? "No draft yet."} aria-label="AI draft" />
+                {selectedDraftPending ? (
+                  <div className="draft-pending-notice" role="status">
+                    <Loader2 aria-hidden="true" />
+                    <span>{draftPendingNotice(selected)}</span>
+                  </div>
+                ) : null}
+                {isSemanticFailed(selected) ? (
+                  <div className="draft-failed-notice" role="status">
+                    <ShieldAlert aria-hidden="true" />
+                    <span>{semanticFailureMessage(selected)}</span>
+                  </div>
+                ) : null}
+                {selectedDraftEdited ? (
+                  <div className="draft-edit-notice" role="status">
+                    <CheckCircle2 aria-hidden="true" />
+                    <span>Edited reply will be used for publish and draft revision.</span>
+                  </div>
+                ) : null}
+                <textarea
+                  readOnly={!canEditDraft(selected, selectedReadOnly)}
+                  value={selected.draft ? draftEditValue(selected) : draftTextareaValue(selected)}
+                  aria-label="Reply draft editor"
+                  onChange={(event) => setDraftEdit(selected, event.target.value)}
+                />
                 {selected.draft ? (
                   <form className="regenerate-row" onSubmit={(event) => regenerate(event, selected.id)}>
-                    <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" required />
-                    <button className="button" disabled={Boolean(busy)} type="submit">Revise draft</button>
+                    <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" disabled={selectedDraftPending} required />
+                    <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="submit">
+                      {selected.status === "regeneration_pending" ? <Loader2 className="button-spinner" aria-hidden="true" /> : null}
+                      {selected.status === "regeneration_pending" ? "Revising" : "Revise draft"}
+                    </button>
                   </form>
                 ) : null}
               </section>
             </div>
 
             <div className="review-modal-actions">
-              <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
+              <button className="button primary" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => publish(selected)}>
                 <MessageSquareText aria-hidden="true" />
-                {publishTestMode ? "Test publish" : "Publish reply"}
+                {publishActionLabel(selected, publishTestMode)}
               </button>
-              <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
+              <button className="button" disabled={Boolean(busy) || selectedDraftPending} type="button" onClick={() => manualHandled(selected.id)}>
                 <CheckCircle2 aria-hidden="true" />
                 Mark as handled
               </button>
@@ -650,7 +855,39 @@ function initials(name: string): string {
     .join("") || "RP";
 }
 
+function normalizeReviewsPayload(payload: unknown): { items: ReviewDto[]; total: number; limit: number | null } {
+  if (Array.isArray(payload)) {
+    return { items: payload, total: payload.length, limit: null };
+  }
+  const value = isRecord(payload) ? payload as ReviewsPayload : {};
+  const items = Array.isArray(value.items) ? value.items : [];
+  return {
+    items,
+    total: typeof value.total === "number" ? value.total : items.length,
+    limit: typeof value.limit === "number" ? value.limit : null
+  };
+}
+
+function reviewQueueSummary(loaded: number, total: number): string {
+  if (total > loaded) {
+    return `Showing ${loaded} of ${total} unhandled`;
+  }
+  return `Showing ${loaded} unhandled`;
+}
+
 function riskLabel(review: ReviewDto): string {
+  if (review.status === "analysis_pending") {
+    return "Generating";
+  }
+  if (review.status === "regeneration_pending") {
+    return "Revising";
+  }
+  if (isSemanticFailed(review)) {
+    return "Generation failed";
+  }
+  if (review.status === "failed") {
+    return "Failed";
+  }
   if (review.analysis?.publishRisk.requiresHumanReview || review.analysis?.severity === "red") {
     return "High risk";
   }
@@ -664,6 +901,12 @@ function riskLabel(review: ReviewDto): string {
 }
 
 function riskChipClass(review: ReviewDto): string {
+  if (isSemanticPending(review)) {
+    return "rp-chip pending";
+  }
+  if (isSemanticFailed(review) || review.status === "failed") {
+    return "rp-chip danger";
+  }
   if (review.analysis?.publishRisk.requiresHumanReview || review.analysis?.severity === "red") {
     return "rp-chip danger";
   }
@@ -677,6 +920,57 @@ function isReviewComplete(review: ReviewDto): boolean {
   return review.status === "published" || review.status === "manual_handled";
 }
 
+function isSemanticPending(review: ReviewDto): boolean {
+  return review.status === "analysis_pending" || review.status === "regeneration_pending";
+}
+
+function isSemanticFailed(review: ReviewDto): boolean {
+  return review.status === "failed" && review.semanticJob?.status === "failed";
+}
+
+function canEditDraft(review: ReviewDto, readOnly: boolean): boolean {
+  return Boolean(review.draft && !readOnly && !isSemanticPending(review) && !isSemanticFailed(review));
+}
+
+function draftStatusText(review: ReviewDto): string {
+  if (review.status === "analysis_pending") {
+    return review.draft ? `Generating new draft after version ${review.draft.version}` : "Generating draft";
+  }
+  if (review.status === "regeneration_pending") {
+    return review.draft ? `Revising version ${review.draft.version}` : "Revising draft";
+  }
+  if (isSemanticFailed(review)) {
+    return review.draft ? `Generation failed after version ${review.draft.version}` : "Generation failed";
+  }
+  if (review.draft?.userEdited) {
+    return `Version ${review.draft.version}, edited`;
+  }
+  return review.draft ? `Version ${review.draft.version}` : "No draft yet";
+}
+
+function draftActionLabel(review: ReviewDto): string {
+  return review.status === "regeneration_pending" ? "Revising" : "Generating";
+}
+
+function draftPendingNotice(review: ReviewDto): string {
+  return review.status === "regeneration_pending"
+    ? "Codex is revising this draft. The current text stays visible while the new version is prepared."
+    : "Codex is generating a reply draft. This review will refresh automatically when it is ready.";
+}
+
+function draftTextareaValue(review: ReviewDto): string {
+  if (review.draft?.body) {
+    return review.draft.body;
+  }
+  if (isSemanticPending(review)) {
+    return "Draft generation is running...";
+  }
+  if (isSemanticFailed(review)) {
+    return "Draft generation failed. Check Codex in Settings, then try again.";
+  }
+  return "No draft yet.";
+}
+
 function readOnlyNotice(review: ReviewDto): string {
   if (review.status === "published") {
     return "This review has already been published. The signed link is now read-only.";
@@ -685,6 +979,9 @@ function readOnlyNotice(review: ReviewDto): string {
 }
 
 function defaultReasons(review: ReviewDto): string[] {
+  if (isSemanticFailed(review)) {
+    return ["Codex could not finish the draft.", "Test the Codex runtime in Settings, then retry generation."];
+  }
   if (review.rating <= 2) {
     return ["Low rating needs careful owner review.", "Reply will be public on Google."];
   }
@@ -692,6 +989,17 @@ function defaultReasons(review: ReviewDto): string[] {
     return ["No draft exists yet.", "Generate and review before publishing."];
   }
   return ["Public reply action.", "Review tone before sending to Google."];
+}
+
+function semanticFailureMessage(review: ReviewDto): string {
+  const error = review.semanticJob?.errorMessage ?? "";
+  if (/not logged in|login|authorization|authentication/i.test(error)) {
+    return "Codex is not authorized on this runtime. Complete Codex authorization in Settings, then retry generation.";
+  }
+  if (/spawn|ENOENT|not found|not recognized|command failed/i.test(error)) {
+    return "Codex CLI is not available to the worker runtime. Test Codex in Settings, then retry generation.";
+  }
+  return "Codex could not finish this draft. Test the runtime in Settings, then retry generation.";
 }
 
 function formatAge(value: string | null): string {
@@ -721,4 +1029,16 @@ function csrfHeader(): Record<string, string> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function responseMessage(value: unknown): string | null {
+  return isRecord(value) && typeof value.message === "string" ? value.message : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function normalizeDraftBody(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }

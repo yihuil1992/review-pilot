@@ -55,11 +55,16 @@ export const ReviewListQuerySchema = z.object({
 });
 
 export const RegenerateReviewBodySchema = z.object({
-  instruction: z.string().min(1).max(1000)
+  instruction: z.string().min(1).max(1000),
+  currentDraftBody: z.string().trim().min(1).max(4096).optional()
+});
+
+export const GenerateReviewBodySchema = z.object({
+  currentDraftBody: z.string().trim().min(1).max(4096).optional()
 });
 
 export const PublishReplyBodySchema = z.object({
-  body: z.string().min(1).max(4096)
+  body: z.string().trim().min(1).max(4096)
 });
 
 export type AnalyzeReviewInput = z.infer<typeof AnalyzeReviewInputSchema>;

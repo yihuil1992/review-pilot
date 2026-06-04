@@ -11,12 +11,23 @@
     "agent:cli": "pnpm --silent --filter @review-pilot/agent cli",
     "agent:mcp": "pnpm --silent --filter @review-pilot/agent mcp",
     "demo:build": "node -e \"const {spawnSync}=require('child_process'); process.env.GITHUB_PAGES='true'; process.env.NEXT_PUBLIC_DEMO_MODE='true'; process.env.NEXT_PUBLIC_BASE_PATH='/review-pilot'; const result=spawnSync('pnpm',['--filter','@review-pilot/web','build'],{stdio:'inherit',shell:true}); process.exit(result.status ?? 1);\"",
-    "build": "pnpm -r build",
+    "build": "pnpm db:generate && pnpm -r build",
+    "build:api": "pnpm db:generate && pnpm --filter @review-pilot/shared build && pnpm --filter @review-pilot/db build && pnpm --filter @review-pilot/api build",
+    "build:worker": "pnpm db:generate && pnpm --filter @review-pilot/shared build && pnpm --filter @review-pilot/db build && pnpm --filter @review-pilot/worker build",
+    "build:web": "pnpm --filter @review-pilot/shared build && pnpm --filter @review-pilot/web build",
+    "start": "node scripts/railway-start.mjs",
+    "start:api": "pnpm db:deploy && pnpm --filter @review-pilot/api start",
+    "start:worker": "pnpm db:deploy && pnpm --filter @review-pilot/worker start",
+    "start:web": "pnpm --filter @review-pilot/web start",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter @review-pilot/db prisma generate",
-    "db:migrate": "pnpm --filter @review-pilot/db prisma migrate dev",
+    "db:deploy": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate deploy",
+    "db:migrate": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate dev",
     "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike"
+  },
+  "dependencies": {
+    "@openai/codex": "^0.137.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

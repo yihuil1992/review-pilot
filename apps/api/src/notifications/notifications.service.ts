@@ -76,10 +76,13 @@ export class NotificationsService {
     if (!setting?.value || typeof setting.value !== "object" || Array.isArray(setting.value)) {
       return {
         enabled: process.env.REVIEW_SYNC_SCHEDULER_ENABLED !== "false",
+        enabledAt: null,
         intervalMinutes: 60,
         lastStartedAt: null,
         lastFinishedAt: null,
         nextRunAt: null,
+        syncWindowStartAt: null,
+        syncWindowEndAt: null,
         status: process.env.REVIEW_SYNC_SCHEDULER_ENABLED === "false" ? "disabled" : "idle",
         locationsScanned: 0,
         reviewsSeen: 0,

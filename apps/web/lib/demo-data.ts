@@ -219,10 +219,13 @@ export const demoBootstrap = {
 
 export const demoReviewSync = {
   enabled: true,
+  enabledAt: "2026-06-04T12:00:00.000Z",
   intervalMinutes: 60,
   lastStartedAt: "2026-06-04T13:00:00.000Z",
   lastFinishedAt: "2026-06-04T13:01:12.000Z",
   nextRunAt: "2026-06-04T14:00:00.000Z",
+  syncWindowStartAt: "2026-06-04T12:01:12.000Z",
+  syncWindowEndAt: "2026-06-04T13:00:00.000Z",
   status: "succeeded" as const,
   locationsScanned: 3,
   reviewsSeen: 17,

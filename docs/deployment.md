@@ -2,6 +2,8 @@
 
 Review Pilot has one codebase and two production profiles.
 
+For Railway, use the dedicated profile in [docs/railway.md](railway.md). It keeps the app on Railway-provided domains, uses Railway Postgres/Redis, proxies `/api/*` through the web service, and stores Codex auth on a persistent Railway volume.
+
 ## Mac Public Profile
 
 This is the recommended first production path because Codex subscription auth naturally lives on the owner's Mac.

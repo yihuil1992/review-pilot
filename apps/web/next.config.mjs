@@ -5,9 +5,22 @@ const nextConfig = (phase) => {
   const githubPages = process.env.GITHUB_PAGES === "true";
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (githubPages ? "/review-pilot" : "");
   const staticExport = demoMode || githubPages;
+  const apiProxyUrl = process.env.API_PROXY_URL?.replace(/\/$/, "");
 
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
+    ...(apiProxyUrl
+      ? {
+          async rewrites() {
+            return [
+              {
+                source: "/api/:path*",
+                destination: `${apiProxyUrl}/api/:path*`
+              }
+            ];
+          }
+        }
+      : {}),
     ...(staticExport
       ? {
           output: "export",

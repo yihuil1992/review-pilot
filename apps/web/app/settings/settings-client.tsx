@@ -308,10 +308,14 @@ export function SettingsClient() {
 
   async function startCodexLogin() {
     toast.dismiss(codexLoginToastId);
-    const result = await submit("/settings/codex/login/start", {}, null);
-    if (result?.status) {
-      setCodexLogin({ loggedIn: false, loginStatus: "Device authorization started", session: result });
+    const result = await submit("/settings/codex/login/start", {}, null) as CodexLoginStatus | null;
+    if (result?.session) {
+      setCodexLogin(result);
       void pollCodexLogin();
+      return;
+    }
+    if (result?.loginStatus) {
+      setCodexLogin(result);
     }
   }
 
@@ -381,9 +385,13 @@ export function SettingsClient() {
     }
     if (path === "/settings/codex/login/start") {
       return {
-        status: "ready",
-        loginUrl: "https://chatgpt.com/",
-        userCode: "RP-DEMO"
+        loggedIn: true,
+        loginStatus: "Demo Codex authorization is ready",
+        session: {
+          status: "ready",
+          loginUrl: "https://chatgpt.com/",
+          userCode: "RP-DEMO"
+        }
       };
     }
     if (path === "/settings/codex") {

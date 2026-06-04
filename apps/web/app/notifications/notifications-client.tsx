@@ -37,10 +37,13 @@ type NotificationCounts = {
 
 type ReviewSyncStatus = {
   enabled: boolean;
+  enabledAt?: string | null;
   intervalMinutes: number;
   lastStartedAt: string | null;
   lastFinishedAt: string | null;
   nextRunAt: string | null;
+  syncWindowStartAt?: string | null;
+  syncWindowEndAt?: string | null;
   status: "idle" | "running" | "succeeded" | "failed" | "disabled";
   locationsScanned: number;
   reviewsSeen: number;
@@ -204,6 +207,10 @@ export function NotificationsClient() {
           <div>
             <span>Next scan</span>
             <strong>{formatDate(reviewSync?.nextRunAt ?? null, "Waiting for worker")}</strong>
+          </div>
+          <div>
+            <span>Window</span>
+            <strong>{formatSyncWindow(reviewSync)}</strong>
           </div>
           <div>
             <span>Locations</span>
@@ -372,15 +379,15 @@ function syncSummary(status: ReviewSyncStatus | null): string {
     return "Scheduled Google review sync is disabled.";
   }
   if (status.status === "running") {
-    return "Checking enabled Google locations now.";
+    return "Checking enabled Google locations for reviews in the current sync window.";
   }
   if (status.status === "failed") {
     return "The last Google review scan failed. Check the error before relying on the queue.";
   }
   if (status.status === "succeeded") {
-    return `Enabled locations are checked every ${status.intervalMinutes} minutes.`;
+    return `Enabled locations are checked every ${status.intervalMinutes} minutes. Older reviews outside the sync window are ignored.`;
   }
-  return `Google reviews are checked every ${status.intervalMinutes} minutes.`;
+  return `Google reviews are checked every ${status.intervalMinutes} minutes from the last sync time forward.`;
 }
 
 function formatSyncStatus(status: ReviewSyncStatus["status"]): string {
@@ -400,6 +407,13 @@ function formatDate(value: string | null, empty = "none"): string {
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatSyncWindow(status: ReviewSyncStatus | null): string {
+  if (!status?.syncWindowStartAt || !status.syncWindowEndAt) {
+    return "Not set yet";
+  }
+  return `${formatDate(status.syncWindowStartAt)} to ${formatDate(status.syncWindowEndAt)}`;
 }
 
 function csrfHeader(): Record<string, string> {

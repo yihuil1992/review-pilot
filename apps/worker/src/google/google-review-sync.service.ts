@@ -10,10 +10,13 @@ const reviewSyncIntervalMs = 60 * 60 * 1000;
 
 type ReviewSyncStatus = {
   enabled: boolean;
+  enabledAt: string | null;
   intervalMinutes: number;
   lastStartedAt: string | null;
   lastFinishedAt: string | null;
   nextRunAt: string | null;
+  syncWindowStartAt: string | null;
+  syncWindowEndAt: string | null;
   status: "idle" | "running" | "succeeded" | "failed" | "disabled";
   locationsScanned: number;
   reviewsSeen: number;
@@ -54,11 +57,20 @@ export class GoogleReviewSyncService {
     this.running = true;
     const startedAt = new Date();
     const nextRunAt = new Date(startedAt.getTime() + reviewSyncIntervalMs);
+    const previousStatus = await this.readStatus();
+    const enabledAt = resolveEnabledAt(previousStatus, startedAt);
+    const syncWindow = {
+      start: previousStatus?.lastFinishedAt ? new Date(previousStatus.lastFinishedAt) : enabledAt,
+      end: startedAt
+    };
     const status = {
       ...emptyStatus("running"),
       enabled: process.env.REVIEW_SYNC_SCHEDULER_ENABLED !== "false",
+      enabledAt: enabledAt.toISOString(),
       lastStartedAt: startedAt.toISOString(),
-      nextRunAt: nextRunAt.toISOString()
+      nextRunAt: nextRunAt.toISOString(),
+      syncWindowStartAt: syncWindow.start.toISOString(),
+      syncWindowEndAt: syncWindow.end.toISOString()
     } satisfies ReviewSyncStatus;
     await this.writeStatus(status);
 
@@ -77,7 +89,7 @@ export class GoogleReviewSyncService {
       let updated = 0;
 
       for (const location of locations) {
-        const result = await this.syncLocation(location);
+        const result = await this.syncLocation(location, syncWindow);
         reviewsSeen += result.reviewsSeen;
         created += result.created;
         updated += result.updated;
@@ -85,10 +97,13 @@ export class GoogleReviewSyncService {
 
       await this.writeStatus({
         enabled: true,
+        enabledAt: enabledAt.toISOString(),
         intervalMinutes: 60,
         lastStartedAt: startedAt.toISOString(),
         lastFinishedAt: new Date().toISOString(),
         nextRunAt: nextRunAt.toISOString(),
+        syncWindowStartAt: syncWindow.start.toISOString(),
+        syncWindowEndAt: syncWindow.end.toISOString(),
         status: "succeeded",
         locationsScanned: locations.length,
         reviewsSeen,
@@ -112,7 +127,7 @@ export class GoogleReviewSyncService {
     }
   }
 
-  private async syncLocation(location: LocationWithAccount) {
+  private async syncLocation(location: LocationWithAccount, syncWindow: { start: Date; end: Date }) {
     const token = await this.getAccessToken(location.googleAccountId);
     const reviewCollectionName = buildReviewCollectionName(location);
     let pageToken: string | undefined;
@@ -129,6 +144,10 @@ export class GoogleReviewSyncService {
 
       const response = await googleFetch<GoogleReviewsResponse>(url.toString(), token);
       for (const review of response.reviews ?? []) {
+        if (!isReviewInSyncWindow(review, syncWindow)) {
+          continue;
+        }
+
         reviewsSeen += 1;
         const googleReviewId = review.reviewId ?? review.name.split("/").pop() ?? review.name;
         const existing = await this.prisma.review.findUnique({
@@ -201,15 +220,26 @@ export class GoogleReviewSyncService {
       update: { value: status as unknown as Prisma.InputJsonValue }
     });
   }
+
+  private async readStatus(): Promise<ReviewSyncStatus | null> {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: reviewSyncStatusKey } });
+    if (!setting?.value || typeof setting.value !== "object" || Array.isArray(setting.value)) {
+      return null;
+    }
+    return setting.value as unknown as ReviewSyncStatus;
+  }
 }
 
 function emptyStatus(status: ReviewSyncStatus["status"]): ReviewSyncStatus {
   return {
     enabled: process.env.REVIEW_SYNC_SCHEDULER_ENABLED !== "false",
+    enabledAt: null,
     intervalMinutes: 60,
     lastStartedAt: null,
     lastFinishedAt: null,
     nextRunAt: null,
+    syncWindowStartAt: null,
+    syncWindowEndAt: null,
     status,
     locationsScanned: 0,
     reviewsSeen: 0,
@@ -217,6 +247,31 @@ function emptyStatus(status: ReviewSyncStatus["status"]): ReviewSyncStatus {
     updated: 0,
     error: null
   };
+}
+
+function resolveEnabledAt(previousStatus: ReviewSyncStatus | null, fallback: Date): Date {
+  if (previousStatus?.enabled !== false) {
+    return parseDate(previousStatus?.enabledAt) ?? parseDate(previousStatus?.lastStartedAt) ?? fallback;
+  }
+  return fallback;
+}
+
+function isReviewInSyncWindow(review: GoogleReview, syncWindow: { start: Date; end: Date }): boolean {
+  const reviewTime = parseDate(review.updateTime)
+    ?? parseDate(review.reviewReply?.updateTime)
+    ?? parseDate(review.createTime);
+  if (!reviewTime) {
+    return false;
+  }
+  return reviewTime.getTime() >= syncWindow.start.getTime() && reviewTime.getTime() <= syncWindow.end.getTime();
+}
+
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function reviewUpdateData(review: GoogleReview) {
@@ -306,6 +361,7 @@ type GoogleReview = {
   starRating?: "ONE" | "TWO" | "THREE" | "FOUR" | "FIVE";
   comment?: string;
   createTime?: string;
+  updateTime?: string;
   reviewReply?: {
     comment?: string;
     updateTime?: string;

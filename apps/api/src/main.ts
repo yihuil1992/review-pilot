@@ -3,7 +3,8 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 
-const port = Number(process.env.API_PORT ?? 4000);
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
+const host = process.env.HOSTNAME ?? "::";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,7 +13,7 @@ async function bootstrap() {
     origin: process.env.WEB_ORIGIN ?? true,
     credentials: true
   });
-  await app.listen(port);
+  await app.listen(port, host);
 }
 
 void bootstrap();

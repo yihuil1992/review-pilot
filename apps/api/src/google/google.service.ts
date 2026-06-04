@@ -471,6 +471,7 @@ type GoogleReviewsResponse = {
     starRating?: string;
     comment?: string;
     createTime?: string;
+    updateTime?: string;
     reviewReply?: { comment?: string; updateTime?: string };
   }>;
   nextPageToken?: string;
