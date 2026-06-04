@@ -242,20 +242,18 @@ export function ReviewsClient() {
   return (
     <>
       <section className={`reviews-workspace ${signedReview ? "signed-workspace" : ""}`}>
-        <aside className="review-queue-panel rp-card" aria-label="Review queue">
-          <div className="panel-head">
-            <div>
-              <h2>Queue</h2>
-              <p>{signedReview ? "Signed review link" : `Showing ${reviews.length || 0} unhandled`}</p>
-            </div>
-            {!signedReview ? (
+        {!signedReview ? (
+          <aside className="review-queue-panel rp-card" aria-label="Review queue">
+            <div className="panel-head">
+              <div>
+                <h2>Queue</h2>
+                <p>{`Showing ${reviews.length || 0} unhandled`}</p>
+              </div>
               <button className="icon-button" type="button" onClick={loadReviews} aria-label="Refresh reviews">
                 <RefreshCw aria-hidden="true" />
               </button>
-            ) : null}
-          </div>
+            </div>
 
-          {!signedReview ? (
             <div className="review-filter-bar">
               <div className="review-location-filter" ref={locationMenuRef}>
                 <button
@@ -300,38 +298,38 @@ export function ReviewsClient() {
                 <button className={`rp-chip ${reviewFilter === "draftReady" ? "selected" : ""}`} type="button" onClick={() => setReviewFilter("draftReady")}>Draft ready {queueCounts.draftReady}</button>
               </div>
             </div>
-          ) : null}
 
-          <div className="review-list">
-            {!signedReview && visibleReviews.map((review) => (
-              <button
-                className={`review-row ${review.id === selected?.id ? "active" : ""}`}
-                key={review.id}
-                type="button"
-                onClick={() => {
-                  setSelectedId(review.id);
-                  setMobileDetailOpen(true);
-                }}
-              >
-                <span className="rp-avatar">{initials(review.author)}</span>
-                <span className="review-row-main">
-                  <span className="review-row-top">
-                    <strong>{review.author}</strong>
-                    <small>{formatAge(review.reviewCreatedAt)}</small>
+            <div className="review-list">
+              {visibleReviews.map((review) => (
+                <button
+                  className={`review-row ${review.id === selected?.id ? "active" : ""}`}
+                  key={review.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedId(review.id);
+                    setMobileDetailOpen(true);
+                  }}
+                >
+                  <span className="rp-avatar">{initials(review.author)}</span>
+                  <span className="review-row-main">
+                    <span className="review-row-top">
+                      <strong>{review.author}</strong>
+                      <small>{formatAge(review.reviewCreatedAt)}</small>
+                    </span>
+                    <span className="star-row" aria-label={`${review.rating} stars`}>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <Star key={index} aria-hidden="true" className={index < review.rating ? "filled" : ""} />
+                      ))}
+                    </span>
+                    <span className="review-row-text">{review.text || "No review text provided."}</span>
+                    <span className={riskChipClass(review)}>{riskLabel(review)}</span>
                   </span>
-                  <span className="star-row" aria-label={`${review.rating} stars`}>
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star key={index} aria-hidden="true" className={index < review.rating ? "filled" : ""} />
-                    ))}
-                  </span>
-                  <span className="review-row-text">{review.text || "No review text provided."}</span>
-                  <span className={riskChipClass(review)}>{riskLabel(review)}</span>
-                </span>
-              </button>
-            ))}
-            {!signedReview && visibleReviews.length === 0 ? <div className="notice">No reviews match this filter.</div> : null}
-          </div>
-        </aside>
+                </button>
+              ))}
+              {visibleReviews.length === 0 ? <div className="notice">No reviews match this filter.</div> : null}
+            </div>
+          </aside>
+        ) : null}
 
         {selected ? (
           <article className="review-detail-panel rp-card">
