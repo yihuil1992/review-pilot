@@ -29,6 +29,28 @@ export class ReviewsController {
     return this.reviews.getBySignedLink(reviewId, link);
   }
 
+  @Post(":reviewId/signed/generate")
+  generateBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link?: string) {
+    return this.reviews.generateBySignedLink(reviewId, link);
+  }
+
+  @Post(":reviewId/signed/regenerate")
+  regenerateBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link: string | undefined, @Body() body: unknown) {
+    const input = parseBody(RegenerateReviewBodySchema, body);
+    return this.reviews.regenerateBySignedLink(reviewId, link, input.instruction);
+  }
+
+  @Post(":reviewId/signed/publish")
+  publishBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link: string | undefined, @Body() body: unknown) {
+    const input = parseBody(PublishReplyBodySchema, body);
+    return this.reviews.publishBySignedLink(reviewId, link, input.body);
+  }
+
+  @Post(":reviewId/signed/manual-handled")
+  manualHandledBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link?: string) {
+    return this.reviews.markManualHandledBySignedLink(reviewId, link);
+  }
+
   @Post(":reviewId/generate")
   @UseGuards(OwnerAuthGuard)
   generate(@Param("reviewId") reviewId: string) {

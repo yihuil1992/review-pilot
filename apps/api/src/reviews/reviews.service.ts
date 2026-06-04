@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { Prisma, ReviewPriority, ReviewSeverity, ReviewStatus } from "@review-pilot/db";
 import type { AnalyzeReviewOutput } from "@review-pilot/shared";
 import { PrismaService } from "../prisma.service.js";
@@ -60,10 +60,28 @@ export class ReviewsService {
   }
 
   async getBySignedLink(reviewId: string, token: string | undefined) {
-    if (!this.twilio.verifyReviewLink(token, reviewId)) {
-      throw new Error("Signed review link is invalid or expired");
-    }
-    return this.get(reviewId);
+    this.assertSignedReviewLink(reviewId, token);
+    return { ...(await this.get(reviewId)), publishTestMode: await this.settings.isPublishTestMode() };
+  }
+
+  async generateBySignedLink(reviewId: string, token: string | undefined) {
+    this.assertSignedReviewLink(reviewId, token);
+    return this.generate(reviewId);
+  }
+
+  async regenerateBySignedLink(reviewId: string, token: string | undefined, instruction: string) {
+    this.assertSignedReviewLink(reviewId, token);
+    return this.regenerate(reviewId, instruction);
+  }
+
+  async publishBySignedLink(reviewId: string, token: string | undefined, body: string) {
+    this.assertSignedReviewLink(reviewId, token);
+    return this.publish(reviewId, body);
+  }
+
+  async markManualHandledBySignedLink(reviewId: string, token: string | undefined) {
+    this.assertSignedReviewLink(reviewId, token);
+    return this.markManualHandled(reviewId);
   }
 
   async generate(reviewId: string) {
@@ -309,6 +327,12 @@ export class ReviewsService {
         reviewText: review.reviewText,
         reply: review.publishedReply
       }));
+  }
+
+  private assertSignedReviewLink(reviewId: string, token: string | undefined) {
+    if (!this.twilio.verifyReviewLink(token, reviewId)) {
+      throw new UnauthorizedException("Signed review link is invalid or expired");
+    }
   }
 }
 

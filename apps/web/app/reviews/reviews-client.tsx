@@ -24,6 +24,7 @@ type ReviewDto = {
   };
   draft: null | { body: string; version: number; instruction: string | null };
   publishedReply: string | null;
+  publishTestMode?: boolean;
 };
 
 type BusinessLocation = {
@@ -124,6 +125,7 @@ export function ReviewsClient() {
       toast.error(data?.message ?? "Signed link is invalid or expired");
       return;
     }
+    setPublishTestMode(Boolean(data.publishTestMode));
     setSignedReview(data);
   }
 
@@ -169,10 +171,11 @@ export function ReviewsClient() {
   async function post(path: string, body: Record<string, unknown> = {}, success: string): Promise<boolean> {
     setBusy(path);
     try {
+      const signedMode = Boolean(signedReviewId && signedLink);
       const response = await fetch(`${apiBase}${path}`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", ...csrfHeader() },
+        credentials: signedMode ? "omit" : "include",
+        headers: { "Content-Type": "application/json", ...(signedMode ? {} : csrfHeader()) },
         body: JSON.stringify(body)
       });
       const data = await response.json().catch(() => ({}));
@@ -180,7 +183,11 @@ export function ReviewsClient() {
         toast.error(data.message ?? "Request failed");
         return false;
       }
-      await loadReviews();
+      if (signedReviewId && signedLink) {
+        await loadSignedReview(signedReviewId, signedLink);
+      } else {
+        await loadReviews();
+      }
       toast.success(success);
       return true;
     } finally {
@@ -189,11 +196,11 @@ export function ReviewsClient() {
   }
 
   async function generate(reviewId: string) {
-    await post(`/reviews/${reviewId}/generate`, {}, "AI draft generated");
+    await post(signedActionPath(reviewId, "generate"), {}, "AI draft generated");
   }
 
   async function manualHandled(reviewId: string) {
-    const completed = await post(`/reviews/${reviewId}/manual-handled`, {}, "Review marked as manually handled");
+    const completed = await post(signedActionPath(reviewId, "manual-handled"), {}, "Review marked as handled");
     if (completed) {
       setMobileDetailOpen(false);
     }
@@ -206,7 +213,7 @@ export function ReviewsClient() {
       return;
     }
     const completed = await post(
-      `/reviews/${review.id}/publish`,
+      signedActionPath(review.id, "publish"),
       { body },
       publishTestMode ? "Test publish recorded. No Google reply was sent." : "Reply published"
     );
@@ -220,8 +227,15 @@ export function ReviewsClient() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const instruction = String(form.get("instruction") ?? "");
-    await post(`/reviews/${reviewId}/regenerate`, { instruction }, "AI draft regenerated");
+    await post(signedActionPath(reviewId, "regenerate"), { instruction }, "AI draft regenerated");
     formElement.reset();
+  }
+
+  function signedActionPath(reviewId: string, action: "generate" | "regenerate" | "publish" | "manual-handled") {
+    if (signedReviewId && signedLink) {
+      return `/reviews/${reviewId}/signed/${action}?link=${encodeURIComponent(signedLink)}`;
+    }
+    return `/reviews/${reviewId}/${action}`;
   }
 
   return (
@@ -349,7 +363,7 @@ export function ReviewsClient() {
               )}
             </div>
 
-            {!signedReview && publishTestMode ? (
+            {publishTestMode ? (
               <div className="notice warning">Publish test mode is on. Publish actions update Review Pilot only and do not send replies to Google.</div>
             ) : null}
 
@@ -376,15 +390,13 @@ export function ReviewsClient() {
                   <h3>AI draft</h3>
                   <p>{selected.draft ? `Version ${selected.draft.version}` : "No draft yet"}</p>
                 </div>
-                {!signedReview ? (
-                  <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
-                    <Sparkles aria-hidden="true" />
-                    {selected.draft ? "Generate new draft" : "Generate reply draft"}
-                  </button>
-                ) : null}
+                <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
+                  <Sparkles aria-hidden="true" />
+                  {selected.draft ? "Generate new draft" : "Generate reply draft"}
+                </button>
               </div>
               <textarea readOnly value={selected.draft?.body ?? "No draft yet."} aria-label="AI draft" />
-              {!signedReview && selected.draft ? (
+              {selected.draft ? (
                 <form className="regenerate-row" onSubmit={(event) => regenerate(event, selected.id)}>
                   <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" required />
                   <button className="button" disabled={Boolean(busy)} type="submit">Revise draft</button>
@@ -392,18 +404,16 @@ export function ReviewsClient() {
               ) : null}
             </section>
 
-            {!signedReview ? (
-              <div className="desktop-action-row">
-                <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
-                  <MessageSquareText aria-hidden="true" />
-                  {publishTestMode ? "Test publish" : "Publish reply"}
-                </button>
-                <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
-                  <CheckCircle2 aria-hidden="true" />
-                  Mark as handled
-                </button>
-              </div>
-            ) : null}
+            <div className="desktop-action-row">
+              <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
+                <MessageSquareText aria-hidden="true" />
+                {publishTestMode ? "Test publish" : "Publish reply"}
+              </button>
+              <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
+                <CheckCircle2 aria-hidden="true" />
+                Mark as handled
+              </button>
+            </div>
           </article>
         ) : null}
 
