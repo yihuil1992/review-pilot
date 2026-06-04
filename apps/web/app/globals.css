@@ -2309,21 +2309,23 @@ button.rp-chip:active {
 
   .signed-workspace .desktop-action-row {
     position: fixed;
-    inset-inline: 0;
+    right: max(0px, calc((100vw - 540px) / 2));
+    left: max(0px, calc((100vw - 540px) / 2));
     bottom: 74px;
     z-index: 35;
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
     border-top: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.96);
-    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    background: var(--background);
+    padding: 12px 20px;
+    box-shadow: 0 -12px 24px rgba(22, 32, 42, 0.08);
     backdrop-filter: blur(12px);
   }
 
   .signed-workspace {
     gap: 0;
-    padding-bottom: 132px;
+    padding-bottom: 176px;
   }
 
   .reviews-workspace:not(.signed-workspace) .review-detail-panel {
