@@ -1143,6 +1143,7 @@ button.rp-chip:active {
 .signed-workspace {
   max-width: 900px;
   margin-inline: auto;
+  padding-bottom: 128px;
 }
 
 .review-queue-panel,
@@ -2201,6 +2202,26 @@ button.rp-chip:active {
   .signed-workspace .review-detail-panel {
     max-height: none;
     overflow: visible;
+    padding-bottom: 96px;
+  }
+
+  .signed-workspace .desktop-action-row {
+    position: fixed;
+    right: auto;
+    bottom: 24px;
+    left: calc(232px + max(24px, (100vw - 232px - 900px) / 2));
+    z-index: 35;
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(160px, 220px);
+    justify-content: center;
+    gap: 10px;
+    width: min(900px, calc(100vw - 280px));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+    padding: 12px;
+    box-shadow: 0 16px 34px rgba(22, 32, 42, 0.12);
+    backdrop-filter: blur(12px);
   }
 
   .desktop-action-row {
