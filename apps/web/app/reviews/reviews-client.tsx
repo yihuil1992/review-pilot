@@ -57,6 +57,7 @@ export function ReviewsClient() {
       void loadSignedReview(signedReviewId, signedLink);
       return;
     }
+    setSignedReview(null);
     void loadReviews();
     void loadPublishMode();
     void loadLocations();
