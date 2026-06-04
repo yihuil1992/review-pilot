@@ -18,19 +18,19 @@ typography:
   display:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "32px"
-    fontWeight: 600
+    fontWeight: 700
     lineHeight: 1.25
     letterSpacing: "0"
   headline:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "28px"
-    fontWeight: 600
+    fontWeight: 700
     lineHeight: 1.214
     letterSpacing: "0"
   title:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "20px"
-    fontWeight: 600
+    fontWeight: 700
     lineHeight: 1.4
     letterSpacing: "0"
   body:
@@ -42,7 +42,7 @@ typography:
   label:
     fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "13px"
-    fontWeight: 500
+    fontWeight: 600
     lineHeight: 1.385
     letterSpacing: "0"
   metadata:
@@ -64,15 +64,17 @@ spacing:
   mobile-card: "16px"
   desktop-card: "20px"
   section: "20px"
+motion:
+  fast: "120ms"
+  base: "180ms"
+  slow: "240ms"
+  modal: "260ms"
+  ease-out-quart: "cubic-bezier(0.25, 1, 0.5, 1)"
+  ease-out-quint: "cubic-bezier(0.22, 1, 0.36, 1)"
+  ease-out-expo: "cubic-bezier(0.16, 1, 0.3, 1)"
 components:
   button-primary:
     backgroundColor: "{colors.primary}"
-    textColor: "#FFFFFF"
-    rounded: "{rounded.control}"
-    padding: "0 16px"
-    height: "44px"
-  button-primary-hover:
-    backgroundColor: "{colors.primary-hover}"
     textColor: "#FFFFFF"
     rounded: "{rounded.control}"
     padding: "0 16px"
@@ -103,129 +105,211 @@ components:
 
 # Design System: Review Pilot
 
-## 1. Overview
+## 1. Product Posture
 
-**Creative North Star: "The Owner's Flight Deck"**
+Review Pilot is a mobile-first review operations tool for an owner-operator. It is not a marketing dashboard and not a generic admin console. The product should feel like a calm daily work queue: open the app, see what needs attention, handle one review safely, move on.
 
-Review Pilot is a calm operations cockpit for a business owner who needs to handle public reviews quickly, often from a phone, without losing judgment or control. The system should feel precise and dependable: every screen makes the next action visible, every risk state is labeled plainly, and every customer-facing publish action has enough context around it to feel safe.
+The interface favors clarity over decoration. Every screen should answer three questions quickly:
 
-The visual language is restrained product UI, not a marketing site. It rejects decorative dashboards, oversized SaaS cards, dense desktop-only admin screens, and fragile mobile layouts where primary actions fall below the fold or compete with setup noise.
+- What needs attention right now?
+- Is this action safe to send or only a test?
+- What is the next useful tap?
 
-**Key Characteristics:**
-- Mobile-first triage, with the current review and primary actions before long lists.
-- A cool, porcelain work surface with graphite text and one disciplined teal-blue primary.
-- Familiar navigation, buttons, forms, chips, and list rows.
-- Semantic color used only for status, risk, and action clarity.
-- Dense enough for operations, never cramped enough to feel like a database admin screen.
+The design language is crisp, bright, and operational: ice-blue canvas, porcelain surfaces, graphite type, disciplined teal actions, and compact status language. It should feel polished enough to trust, but simple enough to use with one hand.
 
-## 2. Colors
+## 2. Brand
 
-The palette is a restrained operations palette: ice-backed neutrals, graphite text, one saturated teal-blue command color, and clear semantic statuses.
+The mark combines a review conversation shape with a forward cursor. It communicates "reply, review, send" without looking like a chat app or a video app. The favicon uses the compact cursor mark so browser tabs stay legible at small sizes.
 
-### Primary
-- **Command Teal**: The single primary action color. Use it for publish/generate actions, active navigation, selected queue states, and the most important control on the screen.
-- **Deep Command Teal**: The hover and pressed state for primary actions.
+Brand usage rules:
 
-### Secondary
-- **Setup Amber**: Use for setup needed, due soon, needs reply, and non-blocking caution.
-- **Handled Green**: Use for connected, handled, low risk, sent, and healthy state.
-- **Risk Red**: Use for high risk, failed, destructive states, and publish blockers.
+- Use the image logo asset in the app shell instead of rebuilding the mark with inline SVG.
+- Keep the mark inside its native square crop; do not add another visible outer frame.
+- Pair the mark with `Review Pilot` and the subtitle `Mobile review ops`.
+- Avoid metaphor-heavy subtitles. The product is a review operations queue.
 
-### Neutral
-- **Ice Canvas**: The app background. It keeps the interface bright without becoming beige, cream, or paper-like.
-- **Porcelain Surface**: Cards, panels, forms, and editor surfaces.
-- **Raised Porcelain**: Soft grouped controls, hover rows, and secondary surfaces.
-- **Graphite Ink**: Primary text.
-- **Slate Metadata**: Secondary text, timestamps, helper text, and non-primary icons.
-- **Cool Border**: Separators, input strokes, card outlines, and row boundaries.
+## 3. Color System
 
-### Named Rules
+The palette is deliberately narrow. Teal identifies action and selection; green, amber, and red identify operational state.
 
-**The One Command Rule.** The primary teal must stay rare. It is for the next decisive action, active navigation, or selected state, not decoration.
+Primary:
 
-**The Semantic Truth Rule.** Amber, red, and green must describe operational state. Never use semantic colors to make a screen more colorful.
+- **Command Teal** `#0B6F8F`: primary actions, selected navigation, selected filters, active rows.
+- **Deep Command Teal** `#085D78`: hover and pressed state for primary actions.
 
-## 3. Typography
+Neutrals:
 
-**Display Font:** Inter, with system fallbacks.
-**Body Font:** Inter, with system fallbacks.
-**Label/Mono Font:** Inter for labels; ui-monospace only for logs, IDs, and generated output.
+- **Ice Canvas** `#F4F8FA`: page background.
+- **Porcelain Surface** `#FFFFFF`: cards, sheets, modals, forms, popovers.
+- **Raised Porcelain** `#FBFDFE`: subtle grouped controls and secondary panels.
+- **Graphite Ink** `#16202A`: primary text and icons.
+- **Slate Metadata** `#53626F`: helper text, timestamps, descriptions.
+- **Cool Border** `#D8E2E8`: dividers, strokes, input borders.
 
-**Character:** The type system is quiet, utilitarian, and exact. It uses one sans family so labels, data, and controls feel native and trustworthy.
+Status:
 
-### Hierarchy
-- **Display** (600, 32px, 40px): Used sparingly for the desktop workspace title.
-- **Headline** (600, 28px, 34px): Mobile page titles and major app views.
-- **Title** (600, 20px, 28px): Panel headings, selected review title, setup blocks.
-- **Body** (400, 15px, 24px): Review text, draft body, settings help, task descriptions.
-- **Label** (500, 13px, 18px): Field labels, button text, filter labels, compact rows.
-- **Metadata** (400, 12px, 16px): Time, source, status metadata, secondary row details.
+- **Handled Green** `#147A51`: connected, logged in, sent, saved, healthy.
+- **Setup Amber** `#B7791F`: needs reply, due, warning, test mode.
+- **Risk Red** `#B42318`: errors, failed sends, destructive actions, blockers.
 
-### Named Rules
+Rules:
 
-**The Product Type Rule.** No fluid type, no display fonts in buttons or labels, and no negative letter spacing. Product screens use fixed, readable sizes.
+- Teal is rare and functional. Do not use it as decoration.
+- Status colors must describe real state, not visual variety.
+- Do not introduce purple gradients, beige themes, glass panels, or marketing-style color washes.
 
-## 4. Elevation
+## 4. Typography
 
-Depth is conveyed through tonal layering, borders, and very restrained shadows. Cards and rows are flat at rest. Elevation appears only where it clarifies hierarchy: active mobile bottom bars, overlays, popovers, and selected list rows.
+Use Inter with system fallbacks everywhere. Product screens need fixed, predictable type sizes. Do not scale font sizes with viewport width and do not use negative letter spacing.
 
-### Shadow Vocabulary
-- **Raised Panel** (`0 8px 20px rgba(22, 32, 42, 0.06)`): Use only for overlays, fixed mobile bars, and selected panels that need to sit above content.
-- **Focus Ring** (`0 0 0 3px #0B6F8F33`): Required for keyboard focus on controls and actionable rows.
+- **Display**: 32px / 40px / 700. Desktop page titles only.
+- **Headline**: 28px / 34px / 700. Mobile page titles and major views.
+- **Title**: 20px / 28px / 700. Panel headings, review names, settings groups.
+- **Body**: 15px / 24px / 400. Review text, form help, task descriptions.
+- **Label**: 13px / 18px / 600. Buttons, filters, field labels, status labels.
+- **Metadata**: 12px / 16px / 400. Timestamps, source labels, compact secondary details.
+- **Mono**: ui-monospace only for command output, codes, IDs, and logs.
 
-### Named Rules
+## 5. Layout
 
-**The Flat Work Surface Rule.** Surfaces are flat by default. If a card needs a large soft shadow to be legible, the layout hierarchy is wrong.
+Mobile is the primary product surface. Desktop should feel like a wider version of the same workflow, not a separate enterprise dashboard.
 
-## 5. Components
+Mobile app shell:
 
-### Buttons
-- **Shape:** Tactile but restrained, with gently curved controls (10px radius).
-- **Primary:** Command Teal background with white text, 44px tall on mobile and 40px tall on desktop.
-- **Hover / Focus:** Hover shifts to Deep Command Teal; focus uses a 3px Command Teal ring.
-- **Secondary:** Porcelain surface, Cool Border stroke, Graphite Ink text.
-- **Disabled:** Same geometry, reduced opacity, no color shift.
+- Sticky top bar with logo, product name, and short subtitle.
+- No hamburger button unless there is an actual menu.
+- Fixed bottom navigation with Home, Reviews, Tasks, Settings.
+- Minimum touch target: 44px.
+- Primary action bars are fixed to the bottom of modals or task surfaces when the action must remain available.
 
-### Chips
-- **Style:** 999px radius, 4px vertical padding, explicit labels, semantic tint only when stateful.
-- **State:** Filters can be neutral or selected in Command Teal. Status chips use green, amber, or red tints with readable text.
+Desktop app shell:
 
-### Cards / Containers
-- **Corner Style:** 12px radius. Cards must never exceed 16px.
-- **Background:** Porcelain Surface on Ice Canvas.
-- **Shadow Strategy:** Flat at rest; selected rows use border and tonal fill before shadow.
-- **Border:** Cool Border at 1px.
-- **Internal Padding:** 16px on mobile, 20px on desktop.
+- Left navigation rail with product identity and four clear sections.
+- Content uses constrained operational panels, not nested decorative cards.
+- Desktop may place queue and detail side by side, but mobile interaction patterns remain the source of truth.
 
-### Inputs / Fields
-- **Style:** 44px minimum height, 10px radius, Porcelain Surface, Cool Border stroke.
-- **Focus:** Command Teal border plus 3px translucent focus ring.
-- **Error / Disabled:** Red semantic border for errors; disabled controls keep shape and reduce contrast without disappearing.
+Content density:
 
-### Navigation
-- **Desktop:** 232px dark rail with Review Pilot branding, primary sections, active rail item in Command Teal, account/location pinned near the bottom.
-- **Top Command Strip:** 64px desktop strip for location, date/filter/search, primary generate action, and notifications.
-- **Mobile:** 56-60px top app bar and fixed safe-area bottom nav. Bottom nav has four clear items and 44px minimum touch targets.
+- Cards are for repeated rows, modals, or genuinely framed tools.
+- Do not put cards inside cards.
+- Long lists should be scannable, with visible status and compact metadata.
+- Empty or demo data should not be shown unless it reflects a real unavailable state.
 
-### Review Operations Workspace
-- **Desktop:** Three-column workspace: queue filters/list, selected review/draft editor, setup health/task/activity column.
-- **Mobile:** Current review detail comes before long queue lists. The publish/generate actions live in a fixed bottom action bar above navigation.
+## 6. Core Screens
 
-## 6. Do's and Don'ts
+Home:
 
-### Do:
-- **Do** keep the next action obvious on every screen.
-- **Do** place the current review, risk, draft, and publish/generate actions above long lists on mobile.
-- **Do** use familiar product UI patterns so the owner trusts the tool quickly.
-- **Do** expose risk and status plainly before publishing customer-facing replies.
-- **Do** keep touch targets at least 44px tall.
-- **Do** use the exact token palette from the frontmatter when implementing UI.
+- Summarize live operational counts and urgent work.
+- Do not show a random location as the main identity if the product is operating across all locations.
+- Remove search and notification controls unless they perform a real function.
 
-### Don't:
-- **Don't** use marketing-site hero styling.
-- **Don't** use decorative dashboards.
-- **Don't** use oversized SaaS cards.
-- **Don't** create dense desktop-only admin screens.
-- **Don't** ship fragile mobile layouts where primary actions fall below the fold or compete with setup noise.
-- **Don't** use purple gradients, beige paper themes, glassmorphism, gradient text, nested cards, or giant stats heroes.
-- **Don't** invent non-standard controls for flavor. Familiarity is the product virtue.
+Reviews:
+
+- On mobile, tapping a review opens a detail modal.
+- The list should not keep a desktop selected-row affordance on mobile.
+- The modal header stays fixed so the reviewer name, location, age, and close action remain available.
+- Review text, risk assessment, AI draft, and publish actions are vertically ordered by decision flow.
+- Google links should point to the relevant listing or review surface when available. If only listing-level linking is possible, label it clearly as `Open Google listing`.
+
+Tasks:
+
+- Treat notification tasks as an operational queue, not a demo status board.
+- Remove menu icons that do not open anything.
+- Action buttons should make state visible immediately: running, sent, failed, canceled, or unavailable.
+
+Settings:
+
+- Settings should feel like production configuration, not a fixture browser.
+- Show configured-but-secret values with masked placeholders, such as `set` or a masked suffix.
+- Keep account and location lists compact. Use summaries first, details on demand.
+- Avoid taxonomy pills such as owner/domain/codex/google/twilio unless they are actionable filters.
+- Codex browser login copy should explain device-code authorization clearly: the user opens the link in their own browser, then the server session becomes authorized after polling or refresh.
+
+## 7. Components
+
+Buttons:
+
+- Primary buttons use Command Teal with white text.
+- Secondary buttons are white with Cool Border and Graphite Ink.
+- Disabled buttons keep their shape and become lower contrast.
+- Active press may move down by 1px; do not use exaggerated bounce.
+
+Inputs and selects:
+
+- 44px minimum height.
+- 10px radius.
+- Cool Border at rest, teal border plus focus ring on focus.
+- Custom selects should match the location/model dropdown style: compact trigger, floating porcelain menu, teal selected row, readable hover states.
+
+Chips:
+
+- Filter chips are compact and pill-shaped.
+- Selected filters use teal.
+- Status chips use semantic tints only.
+
+Review rows:
+
+- Avatar, name, rating, age, short text, and reply state should fit without awkward wrapping.
+- Mobile rows open details; they should not require selecting, scrolling up, and scrolling back down.
+- Active styling is desktop-only unless it clarifies a current modal origin.
+
+Modals:
+
+- Mobile review detail modals use a sticky header and sticky action footer.
+- Body content scrolls independently between header and footer.
+- Backdrop should dim the app without hiding context completely.
+- Close buttons use the same rounded control language as other buttons.
+
+Toasts:
+
+- Use Sonner for transient success and error messages.
+- Do not place long errors inside the modal body if they can push important context out of view.
+- Toast close buttons must be visible, compact, and aligned with the toast style.
+
+## 8. Motion
+
+Motion should make the interface feel responsive, not animated for its own sake.
+
+- Fast: 120ms for press and micro feedback.
+- Base: 180ms for hover, focus, color, and border changes.
+- Slow: 240ms for popovers, toasts, and row entrance.
+- Modal: 260ms for overlay entrance.
+- Respect reduced-motion preferences.
+
+Use motion for:
+
+- Button press feedback.
+- Row hover and active states.
+- Popover and dropdown entrance.
+- Modal and toast entrance.
+- Switch/thumb movement.
+
+Avoid:
+
+- Decorative background movement.
+- Large page transitions.
+- Motion that changes layout or causes text reflow.
+
+## 9. Accessibility And UX Rules
+
+- All controls need visible keyboard focus.
+- Buttons, rows, and bottom nav items should meet 44px touch targets on mobile.
+- Text must never overflow or collide with neighboring controls.
+- Color cannot be the only signal for status.
+- Long generated text and logs must scroll inside bounded areas.
+- Publish test mode must be visible before any publish action.
+- Destructive or public-facing actions must be explicit and reversible where possible.
+
+## 10. Implementation Notes
+
+The current implementation uses Next.js, Tailwind CSS, shadcn/ui primitives, lucide-react icons, and Sonner toasts. Prefer those building blocks before adding new UI dependencies.
+
+Primary files:
+
+- `apps/web/app/globals.css`: design tokens, layout, motion, dropdowns, modals, toasts.
+- `apps/web/components/app-shell.tsx`: app shell, navigation, brand placement.
+- `apps/web/components/logo-mark.tsx`: brand asset mount.
+- `apps/web/app/reviews/reviews-client.tsx`: review queue, detail modal, draft actions.
+- `apps/web/app/settings/settings-client.tsx`: production settings UI.
+
+When extending the app, preserve the current product posture: mobile review operations first, decorative dashboard patterns last.

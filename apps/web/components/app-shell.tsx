@@ -54,7 +54,7 @@ export function AppShell({
           </span>
           <span>
             <strong>Review Pilot</strong>
-            <small>Owner flight deck</small>
+            <small>Mobile review ops</small>
           </span>
         </Link>
 
