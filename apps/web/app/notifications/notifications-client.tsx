@@ -114,13 +114,24 @@ export function NotificationsClient() {
 
   return (
     <section className="tasks-page">
-      <div className="rp-card review-sync-card">
-        <div className="panel-head">
-          <div>
-            <h2>Review sync</h2>
-            <p>Google reviews are checked every {reviewSync?.intervalMinutes ?? 60} minutes.</p>
+      <div className="rp-card review-sync-card" data-status={reviewSync?.status ?? "idle"}>
+        <div className="review-sync-overview">
+          <div className="review-sync-lead">
+            <span className="review-sync-icon">
+              <Clock3 aria-hidden="true" />
+            </span>
+            <div>
+              <div className="review-sync-title-row">
+                <h2>Review sync</h2>
+                <span className={reviewSyncChipClass(reviewSync?.status ?? "idle")}>{formatSyncStatus(reviewSync?.status ?? "idle")}</span>
+              </div>
+              <p>{syncSummary(reviewSync)}</p>
+            </div>
           </div>
-          <span className={reviewSyncChipClass(reviewSync?.status ?? "idle")}>{formatSyncStatus(reviewSync?.status ?? "idle")}</span>
+          <button className="button" type="button" onClick={loadReviewSync}>
+            <RefreshCw aria-hidden="true" />
+            Refresh status
+          </button>
         </div>
         <div className="review-sync-grid">
           <div>
@@ -149,14 +160,6 @@ export function NotificationsClient() {
           </div>
         </div>
         {reviewSync?.error ? <div className="notice error">{reviewSync.error}</div> : null}
-        <div className="review-sync-foot">
-          <Clock3 aria-hidden="true" />
-          <span>{reviewSync?.enabled === false ? "Scheduled review sync is disabled." : "Worker updates this panel after each scheduled scan."}</span>
-          <button className="button" type="button" onClick={loadReviewSync}>
-            <RefreshCw aria-hidden="true" />
-            Refresh status
-          </button>
-        </div>
       </div>
 
       <div className="tasks-toolbar">
@@ -296,6 +299,25 @@ function reviewSyncChipClass(status: ReviewSyncStatus["status"]): string {
     return "rp-chip";
   }
   return "rp-chip warning";
+}
+
+function syncSummary(status: ReviewSyncStatus | null): string {
+  if (!status) {
+    return "Waiting for the worker to report its first hourly scan.";
+  }
+  if (!status.enabled || status.status === "disabled") {
+    return "Scheduled Google review sync is disabled.";
+  }
+  if (status.status === "running") {
+    return "Checking enabled Google locations now.";
+  }
+  if (status.status === "failed") {
+    return "The last Google review scan failed. Check the error before relying on the queue.";
+  }
+  if (status.status === "succeeded") {
+    return `Enabled locations are checked every ${status.intervalMinutes} minutes.`;
+  }
+  return `Google reviews are checked every ${status.intervalMinutes} minutes.`;
 }
 
 function formatSyncStatus(status: ReviewSyncStatus["status"]): string {

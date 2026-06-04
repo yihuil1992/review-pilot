@@ -893,6 +893,12 @@ button.rp-chip:active {
   }
 }
 
+@keyframes rp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (min-width: 760px) {
   .legacy-grid > .card.half {
     grid-column: span 6;
@@ -1523,8 +1529,74 @@ button.rp-chip:active {
 
 .review-sync-card {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  overflow: hidden;
   padding: 16px;
+}
+
+.review-sync-overview {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.review-sync-lead {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.review-sync-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #b8dce6;
+  border-radius: 12px;
+  background: #e7f5f8;
+  color: var(--primary);
+}
+
+.review-sync-card[data-status="succeeded"] .review-sync-icon {
+  border-color: #8ed2b5;
+  background: #ddf4ea;
+  color: var(--success);
+}
+
+.review-sync-card[data-status="failed"] .review-sync-icon {
+  border-color: #f1a29b;
+  background: #fff7f6;
+  color: var(--danger);
+}
+
+.review-sync-card[data-status="running"] .review-sync-icon svg {
+  animation: rp-spin 900ms linear infinite;
+}
+
+.review-sync-title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.review-sync-title-row h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 24px;
+}
+
+.review-sync-lead p {
+  max-width: 68ch;
+  margin: 3px 0 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .review-sync-grid {
@@ -1535,7 +1607,7 @@ button.rp-chip:active {
 
 .review-sync-grid > div {
   display: grid;
-  min-height: 64px;
+  min-height: 62px;
   align-content: center;
   gap: 2px;
   border: 1px solid var(--border);
@@ -1559,29 +1631,12 @@ button.rp-chip:active {
 }
 
 .review-sync-grid strong {
-  font-size: 16px;
+  overflow: hidden;
+  font-size: 15px;
   font-weight: 800;
   line-height: 22px;
-}
-
-.review-sync-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted-foreground);
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.review-sync-foot svg {
-  width: 18px;
-  height: 18px;
-  color: var(--primary);
-  flex: 0 0 auto;
-}
-
-.review-sync-foot .button {
-  margin-left: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tasks-toolbar {
@@ -2322,15 +2377,21 @@ button.rp-chip:active {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .review-sync-foot {
+  .review-sync-overview {
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 12px;
   }
 
-  .review-sync-foot .button {
-    grid-column: 1 / -1;
+  .review-sync-overview .button {
     width: 100%;
-    margin-left: 0;
+  }
+
+  .review-sync-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-sync-grid > div {
+    min-width: 0;
   }
 
   .location-table {
