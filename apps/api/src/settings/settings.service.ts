@@ -162,20 +162,17 @@ export class SettingsService {
 
   async getCodexSettings(): Promise<CodexSettings> {
     const setting = await this.getSetting("codex");
+    const defaults = defaultCodexSettings();
     if (!setting?.value || typeof setting.value !== "object" || Array.isArray(setting.value)) {
-      throw new Error("Codex runtime is not configured");
+      return defaults;
     }
 
     const value = setting.value as Partial<CodexSettings>;
-    if (!value.codexHome || !value.codexWorkdir || !value.model) {
-      throw new Error("Codex runtime is not configured");
-    }
-
     return {
-      codexHome: value.codexHome,
-      codexWorkdir: value.codexWorkdir,
-      model: value.model,
-      transcriptRetentionDays: value.transcriptRetentionDays ?? 7
+      codexHome: value.codexHome ?? defaults.codexHome,
+      codexWorkdir: value.codexWorkdir ?? defaults.codexWorkdir,
+      model: value.model ?? defaults.model,
+      transcriptRetentionDays: value.transcriptRetentionDays ?? defaults.transcriptRetentionDays
     };
   }
 
@@ -273,9 +270,10 @@ function parseGoogleOAuthSetting(value: Prisma.JsonValue | undefined): { clientI
 
 function defaultCodexSettings(): CodexBootstrap {
   const home = process.env.USERPROFILE ?? process.env.HOME ?? "";
+  const railwayStateRoot = process.env.RAILWAY_VOLUME_MOUNT_PATH;
   return {
-    codexHome: process.env.CODEX_HOME ?? (home ? join(home, ".codex") : ".codex"),
-    codexWorkdir: process.env.CODEX_WORKDIR ?? join(projectRoot(), ".agent-session", "semantic-runtime"),
+    codexHome: process.env.CODEX_HOME ?? (railwayStateRoot ? join(railwayStateRoot, "codex-home") : home ? join(home, ".codex") : ".codex"),
+    codexWorkdir: process.env.CODEX_WORKDIR ?? (railwayStateRoot ? join(railwayStateRoot, "codex-workdir") : join(projectRoot(), ".agent-session", "semantic-runtime")),
     model: process.env.CODEX_MODEL ?? "gpt-5.4",
     transcriptRetentionDays: Number(process.env.SEMANTIC_TRANSCRIPT_RETENTION_DAYS ?? 7),
     configured: false

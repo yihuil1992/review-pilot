@@ -11,7 +11,7 @@ import { PrismaService } from "./prisma.service.js";
 import { ReviewsController } from "./reviews/reviews.controller.js";
 import { ReviewsService } from "./reviews/reviews.service.js";
 import { CryptoService } from "./security/crypto.service.js";
-import { CodexSemanticService } from "./semantic/codex-semantic.service.js";
+import { SemanticQueueService } from "./semantic/semantic-queue.service.js";
 import { SettingsController } from "./settings.controller.js";
 import { CodexRuntimeService } from "./settings/codex-runtime.service.js";
 import { SettingsService } from "./settings/settings.service.js";
@@ -31,13 +31,13 @@ import { TwilioService } from "./twilio/twilio.service.js";
   providers: [
     AuthService,
     CodexRuntimeService,
-    CodexSemanticService,
     CryptoService,
     GoogleService,
     NotificationQueueService,
     NotificationsService,
     PrismaService,
     ReviewsService,
+    SemanticQueueService,
     SettingsService,
     TwilioService
   ]

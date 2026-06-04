@@ -36,8 +36,11 @@ type NotificationTask = {
   severity: string | null;
 };
 
+type ReviewsPayload = { items?: ReviewDto[]; total?: number; limit?: number };
+
 type LoadState = {
   reviews: ReviewDto[];
+  reviewTotal: number;
   tasks: NotificationTask[];
   error: string | null;
   loading: boolean;
@@ -46,6 +49,7 @@ type LoadState = {
 export function HomeClient() {
   const [state, setState] = useState<LoadState>({
     reviews: [],
+    reviewTotal: 0,
     tasks: [],
     error: null,
     loading: true
@@ -58,6 +62,7 @@ export function HomeClient() {
       if (demoMode) {
         setState({
           reviews: demoReviews as unknown as ReviewDto[],
+          reviewTotal: demoReviews.length,
           tasks: demoNotificationTasks as unknown as NotificationTask[],
           error: null,
           loading: false
@@ -70,7 +75,7 @@ export function HomeClient() {
           fetch(`${apiBase}/reviews`, { credentials: "include" }),
           fetch(`${apiBase}/notifications/tasks`, { credentials: "include" })
         ]);
-        const reviewsData = await reviewsResponse.json().catch(() => []);
+        const reviewsData: unknown = await reviewsResponse.json().catch(() => []);
         const tasksData = await tasksResponse.json().catch(() => []);
 
         if (canceled) {
@@ -80,22 +85,25 @@ export function HomeClient() {
         if (!reviewsResponse.ok || !tasksResponse.ok) {
           setState({
             reviews: [],
+            reviewTotal: 0,
             tasks: [],
-            error: reviewsData?.message ?? tasksData?.message ?? "Overview data failed to load",
+            error: responseMessage(reviewsData) ?? responseMessage(tasksData) ?? "Overview data failed to load",
             loading: false
           });
           return;
         }
 
+        const reviewsPayload = normalizeReviewsPayload(reviewsData);
         setState({
-          reviews: Array.isArray(reviewsData) ? reviewsData : [],
+          reviews: reviewsPayload.items,
+          reviewTotal: reviewsPayload.total,
           tasks: Array.isArray(tasksData) ? tasksData : Array.isArray(tasksData.tasks) ? tasksData.tasks : [],
           error: null,
           loading: false
         });
       } catch {
         if (!canceled) {
-          setState({ reviews: [], tasks: [], error: "Overview data failed to load", loading: false });
+          setState({ reviews: [], reviewTotal: 0, tasks: [], error: "Overview data failed to load", loading: false });
         }
       }
     }
@@ -111,12 +119,12 @@ export function HomeClient() {
     const drafts = state.reviews.filter((review) => review.draft).length;
     const dueNow = state.tasks.filter((task) => task.notificationStatus === "pending").length;
     return [
-      { label: "Unhandled reviews", value: state.reviews.length, icon: FileText, tone: "neutral" },
+      { label: "Unhandled reviews", value: state.reviewTotal, icon: FileText, tone: "neutral" },
       { label: "Due tasks", value: dueNow, icon: Clock, tone: "warning" },
       { label: "High risk", value: highRisk, icon: ShieldAlert, tone: "danger" },
       { label: "Drafts ready", value: drafts, icon: PenLine, tone: "primary" }
     ];
-  }, [state.reviews, state.tasks]);
+  }, [state.reviews, state.reviewTotal, state.tasks]);
 
   const dueReviews = useMemo(
     () =>
@@ -211,6 +219,26 @@ function initials(name: string): string {
 
 function isHighRisk(review: ReviewDto): boolean {
   return Boolean(review.analysis?.publishRisk.requiresHumanReview || review.analysis?.severity === "red");
+}
+
+function normalizeReviewsPayload(payload: unknown): { items: ReviewDto[]; total: number } {
+  if (Array.isArray(payload)) {
+    return { items: payload, total: payload.length };
+  }
+  const value = isRecord(payload) ? payload as ReviewsPayload : {};
+  const items = Array.isArray(value.items) ? value.items : [];
+  return {
+    items,
+    total: typeof value.total === "number" ? value.total : items.length
+  };
+}
+
+function responseMessage(value: unknown): string | null {
+  return isRecord(value) && typeof value.message === "string" ? value.message : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function riskLabel(review: ReviewDto): string {

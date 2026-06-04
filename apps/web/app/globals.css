@@ -519,6 +519,12 @@ button.rp-chip:active {
   color: #8a5b15;
 }
 
+.rp-chip.pending {
+  border-color: #9ad3df;
+  background: #f0fafc;
+  color: var(--primary);
+}
+
 .rp-chip.danger {
   border-color: #f1a29b;
   background: #fff7f6;
@@ -595,6 +601,10 @@ button.rp-chip:active {
 .button:disabled svg {
   opacity: 0.72;
   transform: none;
+}
+
+.button .button-spinner {
+  animation: rp-spin 760ms linear infinite;
 }
 
 .field {
@@ -677,8 +687,9 @@ button.rp-chip:active {
 
 .toaster .cn-toast {
   position: relative;
-  max-height: min(34svh, 260px);
-  overflow: auto;
+  width: min(calc(100vw - 32px), 520px);
+  min-height: 52px;
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: 14px;
   padding-right: 46px;
@@ -734,6 +745,10 @@ button.rp-chip:active {
 .toaster .cn-toast [data-description] {
   white-space: normal;
   word-break: break-word;
+}
+
+.toaster .cn-toast [data-content] {
+  min-width: 0;
 }
 
 @media (max-width: 759px) {
@@ -1507,6 +1522,50 @@ button.rp-chip:active {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--focus);
   outline: 0;
+}
+
+.draft-pending-notice,
+.draft-failed-notice,
+.draft-edit-notice {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.draft-pending-notice {
+  border: 1px solid #9ad3df;
+  background: #f0fafc;
+  color: var(--primary);
+}
+
+.draft-failed-notice {
+  border: 1px solid #f1a29b;
+  background: #fff7f6;
+  color: var(--danger);
+}
+
+.draft-edit-notice {
+  border: 1px solid #b8d8c9;
+  background: #f3fbf7;
+  color: var(--success);
+}
+
+.draft-pending-notice svg,
+.draft-failed-notice svg,
+.draft-edit-notice svg {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+}
+
+.draft-pending-notice svg {
+  animation: rp-spin 760ms linear infinite;
 }
 
 .regenerate-row {

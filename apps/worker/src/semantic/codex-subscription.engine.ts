@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { Inject, Injectable } from "@nestjs/common";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawn } from "node:child_process";
 import {
   AnalyzeReviewInputSchema,
@@ -11,9 +11,12 @@ import {
   type RegenerateReplyInput
 } from "@review-pilot/shared";
 import type { SemanticEngine } from "./semantic-engine.js";
+import { SettingsService } from "../settings/settings.service.js";
 
 @Injectable()
 export class CodexSubscriptionEngine implements SemanticEngine {
+  constructor(@Inject(SettingsService) private readonly settings: SettingsService) {}
+
   async analyzeReview(input: AnalyzeReviewInput): Promise<AnalyzeReviewOutput> {
     const review = AnalyzeReviewInputSchema.parse(input);
     return this.runCodex(buildAnalyzePrompt(review));
@@ -24,6 +27,8 @@ export class CodexSubscriptionEngine implements SemanticEngine {
   }
 
   private async runCodex(prompt: string): Promise<AnalyzeReviewOutput> {
+    const settings = await this.settings.getCodexSettings();
+    await ensureRuntimeDirs(settings);
     const tempDir = await mkdtemp(join(tmpdir(), "review-pilot-codex-"));
     const promptPath = join(tempDir, "prompt.md");
     const outputPath = join(tempDir, "output.json");
@@ -41,7 +46,7 @@ export class CodexSubscriptionEngine implements SemanticEngine {
         "--sandbox",
         "read-only",
         "-m",
-        process.env.CODEX_MODEL ?? "gpt-5.4",
+        settings.model,
         "--output-schema",
         schemaPath,
         "-o",
@@ -49,8 +54,8 @@ export class CodexSubscriptionEngine implements SemanticEngine {
         "-"
       ], {
         stdinFile: promptPath,
-        cwd: process.env.CODEX_WORKDIR ?? process.cwd(),
-        env: codexEnv(process.env.CODEX_HOME, process.env.CODEX_MODEL ?? "gpt-5.4")
+        cwd: settings.codexWorkdir,
+        env: codexEnv(settings.codexHome, settings.model)
       });
 
       const raw = await readFile(outputPath, "utf8");
@@ -61,27 +66,54 @@ export class CodexSubscriptionEngine implements SemanticEngine {
   }
 }
 
-function codexEnv(codexHome: string | undefined, model: string): NodeJS.ProcessEnv {
+async function ensureRuntimeDirs(settings: { codexHome: string; codexWorkdir: string }) {
+  await Promise.all([
+    mkdir(settings.codexHome, { recursive: true }),
+    mkdir(settings.codexWorkdir, { recursive: true })
+  ]);
+}
+
+function codexEnv(codexHome: string, model: string): NodeJS.ProcessEnv {
+  const env = pickEnv([
+    "PATH",
+    "Path",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "SystemRoot",
+    "COMSPEC",
+    "ComSpec",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "SSL_CERT_FILE",
+    "CODEX_CA_CERTIFICATE"
+  ]);
+  const path = codexRuntimePath(env);
   return {
-    ...pickEnv([
-      "PATH",
-      "Path",
-      "HOME",
-      "USERPROFILE",
-      "APPDATA",
-      "LOCALAPPDATA",
-      "SystemRoot",
-      "COMSPEC",
-      "ComSpec",
-      "TEMP",
-      "TMP",
-      "TMPDIR",
-      "SSL_CERT_FILE",
-      "CODEX_CA_CERTIFICATE"
-    ]),
-    ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+    ...env,
+    PATH: path,
+    Path: path,
+    CODEX_HOME: codexHome,
     CODEX_MODEL: model
   };
+}
+
+function codexRuntimePath(env: NodeJS.ProcessEnv): string {
+  const current = env.PATH ?? env.Path ?? "";
+  return [
+    join(process.cwd(), "node_modules", ".bin"),
+    join(process.cwd(), "..", "..", "node_modules", ".bin"),
+    "/app/node_modules/.bin",
+    "/mise/shims",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/bin",
+    current
+  ]
+    .filter(Boolean)
+    .join(delimiter);
 }
 
 function pickEnv(names: string[]): NodeJS.ProcessEnv {

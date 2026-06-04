@@ -136,6 +136,8 @@ Recommended first path:
 - Use a stable HTTPS public URL, such as a named Cloudflare Tunnel.
 - Save that public base URL in Settings so Google OAuth callback URLs stay stable.
 
+Railway is also supported when you want to use Railway-provided domains instead of a DNS tunnel. See [docs/railway.md](docs/railway.md) for the three-service Railway profile, Postgres/Redis variables, same-origin API proxy, and Codex persistent-volume setup.
+
 Avoid serverless for the default semantic engine. Codex auth, worker jobs, and runtime state need a durable environment.
 
 ## Security

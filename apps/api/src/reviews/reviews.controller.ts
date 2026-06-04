@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from "@nestjs/common";
 import {
+  GenerateReviewBodySchema,
   PublishReplyBodySchema,
   RegenerateReviewBodySchema,
   ReviewListQuerySchema
@@ -30,14 +31,15 @@ export class ReviewsController {
   }
 
   @Post(":reviewId/signed/generate")
-  generateBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link?: string) {
-    return this.reviews.generateBySignedLink(reviewId, link);
+  generateBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link: string | undefined, @Body() body: unknown) {
+    const input = parseBody(GenerateReviewBodySchema, body);
+    return this.reviews.generateBySignedLink(reviewId, link, input.currentDraftBody);
   }
 
   @Post(":reviewId/signed/regenerate")
   regenerateBySignedLink(@Param("reviewId") reviewId: string, @Query("link") link: string | undefined, @Body() body: unknown) {
     const input = parseBody(RegenerateReviewBodySchema, body);
-    return this.reviews.regenerateBySignedLink(reviewId, link, input.instruction);
+    return this.reviews.regenerateBySignedLink(reviewId, link, input.instruction, input.currentDraftBody);
   }
 
   @Post(":reviewId/signed/publish")
@@ -53,15 +55,16 @@ export class ReviewsController {
 
   @Post(":reviewId/generate")
   @UseGuards(OwnerAuthGuard)
-  generate(@Param("reviewId") reviewId: string) {
-    return this.reviews.generate(reviewId);
+  generate(@Param("reviewId") reviewId: string, @Body() body: unknown) {
+    const input = parseBody(GenerateReviewBodySchema, body);
+    return this.reviews.generate(reviewId, input.currentDraftBody);
   }
 
   @Post(":reviewId/regenerate")
   @UseGuards(OwnerAuthGuard)
   regenerate(@Param("reviewId") reviewId: string, @Body() body: unknown) {
     const input = parseBody(RegenerateReviewBodySchema, body);
-    return this.reviews.regenerate(reviewId, input.instruction);
+    return this.reviews.regenerate(reviewId, input.instruction, input.currentDraftBody);
   }
 
   @Post(":reviewId/publish")

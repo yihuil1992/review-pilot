@@ -1,8 +1,8 @@
-import { ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import { Prisma, ReviewPriority, ReviewSeverity, ReviewStatus } from "@review-pilot/db";
-import type { AnalyzeReviewOutput } from "@review-pilot/shared";
+import { BadRequestException, ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { Prisma, ReviewSeverity, ReviewStatus } from "@review-pilot/db";
+import { assessReplyPublishRisk } from "@review-pilot/shared";
 import { PrismaService } from "../prisma.service.js";
-import { CodexSemanticService } from "../semantic/codex-semantic.service.js";
+import { SemanticQueueService } from "../semantic/semantic-queue.service.js";
 import { GoogleService } from "../google/google.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { SettingsService } from "../settings/settings.service.js";
@@ -26,7 +26,7 @@ const completedStatuses: ReviewStatus[] = ["published", "manual_handled"];
 export class ReviewsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(CodexSemanticService) private readonly semantic: CodexSemanticService,
+    @Inject(SemanticQueueService) private readonly semanticQueue: SemanticQueueService,
     @Inject(GoogleService) private readonly google: GoogleService,
     @Inject(NotificationsService) private readonly notifications: NotificationsService,
     @Inject(SettingsService) private readonly settings: SettingsService,
@@ -34,19 +34,19 @@ export class ReviewsService {
   ) {}
 
   async list(query: { status?: "unhandled" | "all"; locationId?: string; severity?: string; rating?: number }) {
-    const reviews = await this.prisma.review.findMany({
-      where: {
-        ...(query.status === "all" ? {} : { status: { in: unhandledStatuses } }),
-        ...(query.locationId ? { businessLocationId: query.locationId } : {}),
-        ...(query.rating ? { rating: query.rating } : {}),
-        ...(query.severity ? { analysis: { severity: query.severity as ReviewSeverity } } : {})
-      },
-      include: reviewIncludes(),
-      orderBy: [{ reviewCreatedAt: "desc" }, { createdAt: "desc" }],
-      take: 100
-    });
+    const limit = 100;
+    const where = reviewListWhere(query);
+    const [reviews, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        include: reviewIncludes(),
+        orderBy: [{ reviewCreatedAt: "desc" }, { createdAt: "desc" }],
+        take: limit
+      }),
+      this.prisma.review.count({ where })
+    ]);
 
-    return reviews.map(toReviewDto);
+    return { items: reviews.map(toReviewDto), total, limit };
   }
 
   async get(reviewId: string) {
@@ -65,14 +65,14 @@ export class ReviewsService {
     return { ...(await this.get(reviewId)), publishTestMode: await this.settings.isPublishTestMode() };
   }
 
-  async generateBySignedLink(reviewId: string, token: string | undefined) {
+  async generateBySignedLink(reviewId: string, token: string | undefined, currentDraftBody?: string) {
     this.assertSignedReviewLink(reviewId, token);
-    return this.generate(reviewId);
+    return this.generate(reviewId, currentDraftBody);
   }
 
-  async regenerateBySignedLink(reviewId: string, token: string | undefined, instruction: string) {
+  async regenerateBySignedLink(reviewId: string, token: string | undefined, instruction: string, currentDraftBody?: string) {
     this.assertSignedReviewLink(reviewId, token);
-    return this.regenerate(reviewId, instruction);
+    return this.regenerate(reviewId, instruction, currentDraftBody);
   }
 
   async publishBySignedLink(reviewId: string, token: string | undefined, body: string) {
@@ -85,56 +85,60 @@ export class ReviewsService {
     return this.markManualHandled(reviewId);
   }
 
-  async generate(reviewId: string) {
+  async generate(reviewId: string, currentDraftBody?: string) {
     const review = await this.loadReviewForSemantic(reviewId);
     this.assertReviewActionable(review.status);
-    await this.prisma.review.update({ where: { id: reviewId }, data: { status: "analysis_pending" } });
-    return this.runSemanticJob(reviewId, "semantic.generateReply", async () =>
-      this.semantic.analyzeReview({
-        businessName: review.businessLocation.businessName,
-        authorName: review.authorName ?? "Customer",
-        rating: review.rating,
-        reviewText: review.reviewText ?? "",
-        reviewCreatedAt: review.reviewCreatedAt?.toISOString(),
-        historicalReplies: await this.getHistoricalReplies(review.businessLocationId)
-      })
-    );
+    await this.saveLatestDraftEdit(reviewId, currentDraftBody);
+    const codex = await this.settings.getCodexSettings();
+    const [jobRun] = await Promise.all([
+      this.createSemanticJobRun(reviewId, "semantic.generateReply", codex.model),
+      this.prisma.review.update({ where: { id: reviewId }, data: { status: "analysis_pending" } })
+    ]);
+    const job = await this.semanticQueue.enqueueGenerate({ reviewId, jobRunId: jobRun.id });
+    return { queued: true, job, review: await this.get(reviewId) };
   }
 
-  async regenerate(reviewId: string, instruction: string) {
+  async regenerate(reviewId: string, instruction: string, currentDraftBody?: string) {
     const review = await this.loadReviewForSemantic(reviewId);
     this.assertReviewActionable(review.status);
-    const currentDraft = review.drafts[0]?.body;
+    const savedDraft = await this.saveLatestDraftEdit(reviewId, currentDraftBody);
+    const currentDraft = savedDraft?.body ?? currentDraftBody ?? review.drafts[0]?.body;
     if (!currentDraft) {
       throw new Error("No current draft is available to regenerate");
     }
 
-    await this.prisma.review.update({ where: { id: reviewId }, data: { status: "regeneration_pending" } });
-    return this.runSemanticJob(reviewId, "semantic.regenerateReply", async () =>
-      this.semantic.regenerateReply({
-        review: {
-          businessName: review.businessLocation.businessName,
-          authorName: review.authorName ?? "Customer",
-          rating: review.rating,
-          reviewText: review.reviewText ?? "",
-          reviewCreatedAt: review.reviewCreatedAt?.toISOString(),
-          historicalReplies: await this.getHistoricalReplies(review.businessLocationId)
-        },
-        currentDraft,
-        ownerInstruction: instruction
-      })
-    , instruction);
+    const codex = await this.settings.getCodexSettings();
+    const [jobRun] = await Promise.all([
+      this.createSemanticJobRun(reviewId, "semantic.regenerateReply", codex.model),
+      this.prisma.review.update({ where: { id: reviewId }, data: { status: "regeneration_pending" } })
+    ]);
+    const job = await this.semanticQueue.enqueueRegenerate({ reviewId, jobRunId: jobRun.id, instruction, currentDraftBody: currentDraft });
+    return { queued: true, job, review: await this.get(reviewId) };
   }
 
   async publish(reviewId: string, body: string) {
-    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    const finalBody = body.trim();
+    if (!finalBody) {
+      throw new BadRequestException("Reply body is required");
+    }
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      include: { drafts: { orderBy: { version: "desc" }, take: 1 } }
+    });
     if (!review) {
       throw new Error("Review not found");
     }
     this.assertReviewActionable(review.status);
-    if (review.status === "published" && review.publishedReply === body) {
+    if (review.status === "published" && review.publishedReply === finalBody) {
       return this.get(reviewId);
     }
+    const draft = await this.saveLatestDraftEdit(reviewId, finalBody);
+    const manualRisk = assessReplyPublishRisk({
+      rating: review.rating,
+      reviewText: review.reviewText ?? "",
+      replyBody: finalBody,
+      aiBody: draft?.aiBody ?? review.drafts[0]?.aiBody ?? null
+    });
     const publishTestMode = await this.settings.isPublishTestMode();
     if (!publishTestMode) {
       await this.assertPublishAllowed(review.businessLocationId);
@@ -142,18 +146,28 @@ export class ReviewsService {
 
     await this.prisma.review.update({ where: { id: reviewId }, data: { status: "publishing" } });
     if (!publishTestMode) {
-      await this.google.publishReply(reviewId, body);
+      await this.google.publishReply(reviewId, finalBody);
     }
     await this.prisma.review.update({
       where: { id: reviewId },
       data: {
         status: "published",
-        publishedReply: body,
+        publishedReply: finalBody,
         replyPublishedAt: publishTestMode ? null : new Date(),
-        actions: { create: { type: "published", metadata: { source: "owner", testMode: publishTestMode } } }
+        actions: {
+          create: {
+            type: "published",
+            metadata: {
+              source: "owner",
+              testMode: publishTestMode,
+              userEditedDraft: Boolean(draft?.userEdited),
+              manualRisk
+            }
+          }
+        }
       }
     });
-    return { ...(await this.get(reviewId)), publishTestMode };
+    return { ...(await this.get(reviewId)), publishTestMode, manualRisk };
   }
 
   async sendDueNotifications() {
@@ -190,92 +204,49 @@ export class ReviewsService {
     return review;
   }
 
-  private async runSemanticJob(
-    reviewId: string,
-    type: string,
-    run: () => Promise<AnalyzeReviewOutput>,
-    instruction?: string
-  ) {
-    const job = await this.prisma.jobRun.create({
+  private async createSemanticJobRun(reviewId: string, type: string, model: string) {
+    return this.prisma.jobRun.create({
       data: {
         reviewId,
         type,
-        status: "running",
+        status: "queued",
         provider: "codex-subscription",
-        model: process.env.CODEX_MODEL ?? null,
+        model,
         promptVersion: "review-pilot-v1",
         outputSchemaVersion: "review-analysis-v1"
       }
     });
-
-    try {
-      const output = await run();
-      const draft = await this.persistSemanticOutput(reviewId, output, instruction);
-      await this.prisma.jobRun.update({ where: { id: job.id }, data: { status: "succeeded" } });
-      return { review: await this.get(reviewId), draft };
-    } catch (error) {
-      await this.prisma.jobRun.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          errorCode: "semantic_failed",
-          errorMessage: error instanceof Error ? error.message.slice(0, 1000) : "Semantic job failed"
-        }
-      });
-      await this.prisma.review.update({ where: { id: reviewId }, data: { status: "failed" } });
-      throw error;
-    }
   }
 
-  private async persistSemanticOutput(reviewId: string, output: AnalyzeReviewOutput, instruction?: string) {
-    const version = (await this.prisma.replyDraft.count({ where: { reviewId } })) + 1;
-    const draft = await this.prisma.replyDraft.create({
-      data: {
-        reviewId,
-        body: output.draftReply,
-        instruction,
-        version
-      }
-    });
-
-    await this.prisma.reviewAnalysis.upsert({
+  private async saveLatestDraftEdit(reviewId: string, body: string | undefined) {
+    if (body === undefined) {
+      return null;
+    }
+    const finalBody = body.trim();
+    if (!finalBody) {
+      throw new BadRequestException("Draft body is required");
+    }
+    const draft = await this.prisma.replyDraft.findFirst({
       where: { reviewId },
-      create: {
-        reviewId,
-        severity: output.severity as ReviewSeverity,
-        priority: output.priority as ReviewPriority,
-        issues: output.issues,
-        positives: output.positives,
-        keywords: output.keywords,
-        publishRisk: output.publishRisk as Prisma.InputJsonValue,
-        reasoning: output.reasoning
-      },
-      update: {
-        severity: output.severity as ReviewSeverity,
-        priority: output.priority as ReviewPriority,
-        issues: output.issues,
-        positives: output.positives,
-        keywords: output.keywords,
-        publishRisk: output.publishRisk as Prisma.InputJsonValue,
-        reasoning: output.reasoning
-      }
+      orderBy: { version: "desc" }
     });
+    if (!draft) {
+      return null;
+    }
 
-    await this.prisma.review.update({
-      where: { id: reviewId },
+    const userEdited = normalizeDraftBody(finalBody) !== normalizeDraftBody(draft.aiBody);
+    if (draft.body === finalBody && draft.userEdited === userEdited) {
+      return draft;
+    }
+
+    return this.prisma.replyDraft.update({
+      where: { id: draft.id },
       data: {
-        status: "draft_ready",
-        latestDraftId: draft.id,
-        notifyAt: calculateNotifyAt(output.severity),
-        notified: false,
-        notificationSentAt: null,
-        notificationStatus: "pending",
-        notificationLastError: null,
-        actions: { create: { type: instruction ? "regenerated" : "draft_generated", metadata: { source: "codex-subscription" } } }
+        body: finalBody,
+        userEdited,
+        editedAt: userEdited ? new Date() : null
       }
     });
-
-    return draft;
   }
 
   private async assertPublishAllowed(businessLocationId: string) {
@@ -369,12 +340,27 @@ function reviewIncludes() {
       include: { googleAccount: { select: { email: true } } }
     },
     analysis: true,
-    drafts: { orderBy: { version: "desc" as const }, take: 1 }
+    drafts: { orderBy: { version: "desc" as const }, take: 1 },
+    jobs: {
+      where: { type: { in: ["semantic.generateReply", "semantic.regenerateReply"] } },
+      orderBy: { createdAt: "desc" as const },
+      take: 1
+    }
+  };
+}
+
+function reviewListWhere(query: { status?: "unhandled" | "all"; locationId?: string; severity?: string; rating?: number }): Prisma.ReviewWhereInput {
+  return {
+    ...(query.status === "all" ? {} : { status: { in: unhandledStatuses } }),
+    ...(query.locationId ? { businessLocationId: query.locationId } : {}),
+    ...(query.rating ? { rating: query.rating } : {}),
+    ...(query.severity ? { analysis: { severity: query.severity as ReviewSeverity } } : {})
   };
 }
 
 function toReviewDto(review: Prisma.ReviewGetPayload<{ include: ReturnType<typeof reviewIncludes> }>) {
   const draft = review.drafts[0] ?? null;
+  const semanticJob = review.jobs[0] ?? null;
   return {
     id: review.id,
     googleReviewId: review.googleReviewId,
@@ -398,7 +384,28 @@ function toReviewDto(review: Prisma.ReviewGetPayload<{ include: ReturnType<typeo
           reasoning: review.analysis.reasoning
         }
       : null,
-    draft: draft ? { id: draft.id, body: draft.body, version: draft.version, instruction: draft.instruction } : null,
+    draft: draft
+      ? {
+          id: draft.id,
+          aiBody: draft.aiBody,
+          body: draft.body,
+          version: draft.version,
+          instruction: draft.instruction,
+          userEdited: draft.userEdited,
+          editedAt: draft.editedAt?.toISOString() ?? null
+        }
+      : null,
+    semanticJob: semanticJob
+      ? {
+          id: semanticJob.id,
+          type: semanticJob.type,
+          status: semanticJob.status,
+          errorCode: semanticJob.errorCode,
+          errorMessage: semanticJob.errorMessage,
+          startedAt: semanticJob.startedAt?.toISOString() ?? null,
+          finishedAt: semanticJob.finishedAt?.toISOString() ?? null
+        }
+      : null,
     publishedReply: review.publishedReply,
     replyPublishedAt: review.replyPublishedAt?.toISOString() ?? null
   };
@@ -413,4 +420,8 @@ function buildGoogleMapsUrl(placeId: string | null, businessName: string): strin
   url.searchParams.set("query", businessName);
   url.searchParams.set("query_place_id", placeId);
   return url.toString();
+}
+
+function normalizeDraftBody(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
