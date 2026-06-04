@@ -2354,6 +2354,8 @@ button.rp-chip:active {
     background: rgba(7, 24, 39, 0.42);
     padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
     animation: rp-modal-backdrop-enter var(--motion-slow) var(--ease-out-quart);
+    overscroll-behavior: contain;
+    touch-action: none;
   }
 
   .review-modal {
@@ -2367,6 +2369,7 @@ button.rp-chip:active {
     background: var(--card);
     box-shadow: 0 8px 20px rgba(22, 32, 42, 0.14);
     animation: rp-modal-enter 260ms var(--ease-out-expo);
+    touch-action: auto;
   }
 
   .review-modal-head {
@@ -2397,6 +2400,8 @@ button.rp-chip:active {
     display: grid;
     gap: 14px;
     overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
   }
 

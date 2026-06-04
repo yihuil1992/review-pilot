@@ -85,6 +85,39 @@ export function ReviewsClient() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!mobileDetailOpen || signedReview) {
+      return;
+    }
+
+    const scrollY = window.scrollY;
+    const previousBodyStyle = {
+      position: document.body.style.position,
+      top: document.body.style.top,
+      right: document.body.style.right,
+      left: document.body.style.left,
+      width: document.body.style.width,
+      overflow: document.body.style.overflow
+    };
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.right = "0";
+    document.body.style.left = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.position = previousBodyStyle.position;
+      document.body.style.top = previousBodyStyle.top;
+      document.body.style.right = previousBodyStyle.right;
+      document.body.style.left = previousBodyStyle.left;
+      document.body.style.width = previousBodyStyle.width;
+      document.body.style.overflow = previousBodyStyle.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileDetailOpen, signedReview]);
+
   const queueCounts = useMemo(() => {
     const highRisk = reviews.filter((review) => review.analysis?.publishRisk.requiresHumanReview || review.analysis?.severity === "red").length;
     const draftReady = reviews.filter((review) => review.draft).length;
