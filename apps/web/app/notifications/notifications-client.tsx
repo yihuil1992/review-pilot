@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Ban, Clock3, Filter, RefreshCw, RotateCcw, Send, Zap } from "lucide-react";
 
+import { demoNotificationTasks, demoReviewSync } from "@/lib/demo-data";
+import { demoMode } from "@/lib/demo-mode";
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
 type NotificationTask = {
@@ -51,6 +54,7 @@ const emptyCounts: NotificationCounts = { all: 0, pending: 0, sent: 0, failed: 0
 
 export function NotificationsClient() {
   const [tasks, setTasks] = useState<NotificationTask[]>([]);
+  const [demoTasks, setDemoTasks] = useState<NotificationTask[]>(demoNotificationTasks as unknown as NotificationTask[]);
   const [counts, setCounts] = useState<NotificationCounts>(emptyCounts);
   const [reviewSync, setReviewSync] = useState<ReviewSyncStatus | null>(null);
   const [status, setStatus] = useState("all");
@@ -59,7 +63,7 @@ export function NotificationsClient() {
 
   useEffect(() => {
     void loadTasks();
-  }, [status]);
+  }, [status, demoTasks]);
 
   useEffect(() => {
     void loadReviewSync();
@@ -67,6 +71,13 @@ export function NotificationsClient() {
 
   async function loadTasks() {
     setMessage(null);
+    if (demoMode) {
+      const visibleTasks = status === "all" ? demoTasks : demoTasks.filter((task) => task.notificationStatus === status);
+      setTasks(visibleTasks);
+      setCounts(countTasks(demoTasks));
+      return;
+    }
+
     const query = status === "all" ? "" : `?status=${encodeURIComponent(status)}`;
     const response = await fetch(`${apiBase}/notifications/tasks${query}`, { credentials: "include" });
     const data = await response.json().catch(() => []);
@@ -84,6 +95,11 @@ export function NotificationsClient() {
   }
 
   async function loadReviewSync() {
+    if (demoMode) {
+      setReviewSync(demoReviewSync);
+      return;
+    }
+
     const response = await fetch(`${apiBase}/notifications/review-sync-status`, { credentials: "include" });
     const data = await response.json().catch(() => null);
     if (response.ok && data) {
@@ -95,6 +111,14 @@ export function NotificationsClient() {
     setBusy(path);
     setMessage(null);
     try {
+      if (demoMode) {
+        await sleep(240);
+        applyDemoTaskAction(path);
+        setMessage({ kind: "success", text: success });
+        setReviewSync(demoReviewSync);
+        return;
+      }
+
       const response = await fetch(`${apiBase}${path}`, {
         method: "POST",
         credentials: "include",
@@ -110,6 +134,45 @@ export function NotificationsClient() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function applyDemoTaskAction(path: string) {
+    if (path === "/notifications/run-due") {
+      return;
+    }
+
+    const match = path.match(/\/notifications\/tasks\/([^/]+)\/(send-now|cancel|rerun)/);
+    const reviewId = match?.[1];
+    const action = match?.[2];
+    if (!reviewId || !action) {
+      return;
+    }
+
+    setDemoTasks((current) =>
+      current.map((task) => {
+        if (task.reviewId !== reviewId) {
+          return task;
+        }
+        if (action === "send-now") {
+          return {
+            ...task,
+            notificationStatus: "sent",
+            notificationSentAt: new Date().toISOString(),
+            notificationAttempts: task.notificationAttempts + 1,
+            notificationLastError: null
+          };
+        }
+        if (action === "cancel") {
+          return { ...task, notificationStatus: "canceled", notificationLastError: null };
+        }
+        return {
+          ...task,
+          notificationStatus: "pending",
+          notificationSentAt: null,
+          notificationLastError: null
+        };
+      })
+    );
   }
 
   return (
@@ -346,4 +409,8 @@ function csrfHeader(): Record<string, string> {
     .find((part) => part.startsWith("rp_csrf="))
     ?.slice("rp_csrf=".length);
   return token ? { "X-CSRF-Token": decodeURIComponent(token) } : {};
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

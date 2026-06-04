@@ -1,23 +1,17 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MessageAlert } from "@/components/product-ui";
+import { demoMode } from "@/lib/demo-mode";
 import { ReviewsClient } from "./reviews-client";
 
-export default async function ReviewsPage({
-  searchParams
-}: {
-  searchParams?: Promise<{ review?: string; link?: string }>;
-}) {
-  const params = await searchParams;
-  const signedReview = Boolean(params?.review && params?.link);
-
+export default function ReviewsPage() {
   return (
     <AppShell
       current="/reviews"
-      title={signedReview ? "Review link" : "Unhandled reviews"}
+      title="Unhandled reviews"
       subtitle={
-        signedReview
-          ? "Handle this signed review with the same draft, publish, and handled actions."
+        demoMode
+          ? "Try review triage, AI drafts, test publish, and handled states with sample data."
           : "Triage each review with the business, risk, draft, and publish action in one focused view."
       }
     >

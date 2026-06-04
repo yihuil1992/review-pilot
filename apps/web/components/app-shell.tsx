@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { demoMode } from "@/lib/demo-mode";
 import { LogoMark } from "@/components/logo-mark";
 
 type NavItem = {
@@ -97,6 +98,12 @@ export function AppShell({
             </div>
           ) : null}
         </header>
+
+        {demoMode ? (
+          <div className="demo-banner" role="status">
+            Demo mode · sample data only · no external services
+          </div>
+        ) : null}
 
         <div className="rp-content">{children}</div>
       </section>

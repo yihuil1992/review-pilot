@@ -10,6 +10,7 @@ node_modules/
 **/.next-dev/
 dist/
 **/dist/
+apps/web/out/
 coverage/
 **/coverage/
 .turbo/

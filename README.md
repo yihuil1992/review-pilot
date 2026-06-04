@@ -6,6 +6,16 @@ Review Pilot helps an owner connect Google Business Profile locations, triage un
 
 The product is intentionally narrow: open the app, see what needs attention, handle one review safely, and move on.
 
+## Demo
+
+Try the GitHub Pages demo: [yihuil1992.github.io/review-pilot](https://yihuil1992.github.io/review-pilot/)
+
+The demo is a static frontend preview with sample data. It shows the queue, review actions, notification tasks, and settings UI without calling Google, Twilio, Codex, or the production API.
+
+![Review Pilot demo command center](docs/demo-home.png)
+
+![Review Pilot demo review queue](docs/demo-review-queue.png)
+
 ## What It Does
 
 - Unified Google review queue across connected locations.
@@ -90,12 +100,15 @@ pnpm dev
 pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
+pnpm demo:build
 pnpm build
 pnpm typecheck
 pnpm db:generate
 pnpm db:migrate
 pnpm semantic:spike
 ```
+
+`pnpm demo:build` matches the GitHub Pages workflow: static export, demo data, and the `/review-pilot` base path.
 
 ## Deployment
 

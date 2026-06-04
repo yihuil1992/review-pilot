@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { Check, CheckCircle2, ChevronDown, ExternalLink, MapPin, MessageSquareText, RefreshCw, ShieldAlert, Sparkles, Star, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { demoDraft, demoLocations, demoReviews } from "@/lib/demo-data";
+import { demoMode } from "@/lib/demo-mode";
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
 type ReviewDto = {
@@ -154,6 +157,13 @@ export function ReviewsClient() {
   const selectedLocationLabel = locationOptions.find((location) => location.id === locationId)?.businessName ?? "All locations";
 
   async function loadSignedReview(reviewId: string, link: string) {
+    if (demoMode) {
+      const review = (demoReviews as unknown as ReviewDto[]).find((item) => item.id === reviewId) ?? (demoReviews[0] as unknown as ReviewDto);
+      setPublishTestMode(true);
+      setSignedReview(review);
+      return;
+    }
+
     const response = await fetch(`${apiBase}/reviews/${reviewId}/signed?link=${encodeURIComponent(link)}`);
     const data = await response.json().catch(() => null);
     if (!response.ok) {
@@ -165,6 +175,20 @@ export function ReviewsClient() {
   }
 
   async function loadReviews() {
+    if (demoMode) {
+      const data = locationId === "all"
+        ? (demoReviews as unknown as ReviewDto[])
+        : (demoReviews as unknown as ReviewDto[]).filter((review) => review.businessLocationId === locationId);
+      setReviews(data);
+      setSelectedId((current) => {
+        if (current && data.some((review) => review.id === current)) {
+          return current;
+        }
+        return data[0]?.id ?? null;
+      });
+      return;
+    }
+
     const query = locationId === "all" ? "" : `?locationId=${encodeURIComponent(locationId)}`;
     const response = await fetch(`${apiBase}/reviews${query}`, { credentials: "include" });
     const data = await response.json().catch(() => []);
@@ -182,6 +206,11 @@ export function ReviewsClient() {
   }
 
   async function loadLocations() {
+    if (demoMode) {
+      setLocations((demoLocations as unknown as BusinessLocation[]).filter((location) => location.googleOpenStatus !== "CLOSED_PERMANENTLY"));
+      return;
+    }
+
     const response = await fetch(`${apiBase}/google/locations`, { credentials: "include" });
     if (!response.ok) {
       return;
@@ -195,6 +224,11 @@ export function ReviewsClient() {
   }
 
   async function loadPublishMode() {
+    if (demoMode) {
+      setPublishTestMode(true);
+      return;
+    }
+
     const response = await fetch(`${apiBase}/settings/bootstrap`, { credentials: "include" });
     if (!response.ok) {
       return;
@@ -206,6 +240,13 @@ export function ReviewsClient() {
   async function post(path: string, body: Record<string, unknown> = {}, success: string): Promise<boolean> {
     setBusy(path);
     try {
+      if (demoMode) {
+        await sleep(240);
+        applyDemoReviewAction(path, body);
+        toast.success(success);
+        return true;
+      }
+
       const signedMode = Boolean(signedReviewId && signedLink);
       const response = await fetch(`${apiBase}${path}`, {
         method: "POST",
@@ -228,6 +269,46 @@ export function ReviewsClient() {
     } finally {
       setBusy(null);
     }
+  }
+
+  function applyDemoReviewAction(path: string, body: Record<string, unknown>) {
+    const match = path.match(/\/reviews\/([^/]+)\/(?:signed\/)?(generate|regenerate|publish|manual-handled)/);
+    const reviewId = match?.[1];
+    const action = match?.[2];
+    if (!reviewId || !action) {
+      return;
+    }
+
+    const updateReview = (review: ReviewDto): ReviewDto => {
+      if (review.id !== reviewId) {
+        return review;
+      }
+      if (action === "publish") {
+        return {
+          ...review,
+          status: "published",
+          publishedReply: String(body.body ?? review.draft?.body ?? ""),
+          publishTestMode: true
+        };
+      }
+      if (action === "manual-handled") {
+        return { ...review, status: "manual_handled" };
+      }
+
+      const instruction = action === "regenerate" ? String(body.instruction ?? "") : "";
+      const nextVersion = (review.draft?.version ?? 0) + 1;
+      return {
+        ...review,
+        draft: {
+          body: demoDraft(review.author, review.business, instruction),
+          version: nextVersion,
+          instruction: instruction || null
+        }
+      };
+    };
+
+    setReviews((current) => current.map(updateReview));
+    setSignedReview((current) => (current ? updateReview(current) : current));
   }
 
   async function generate(reviewId: string) {
@@ -636,4 +717,8 @@ function csrfHeader(): Record<string, string> {
     .find((part) => part.startsWith("rp_csrf="))
     ?.slice("rp_csrf=".length);
   return token ? { "X-CSRF-Token": decodeURIComponent(token) } : {};
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

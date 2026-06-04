@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, CheckCircle2, ChevronDown, CircleAlert, CircleDashed, Copy, ExternalLink, RefreshCw } from "lucide-react";
 
+import { demoBootstrap, demoGoogleAccounts, demoLocations } from "@/lib/demo-data";
+import { demoMode } from "@/lib/demo-mode";
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 const localGoogleCallbackUrl = `${apiBase.replace(/\/$/, "")}/google/oauth/callback`;
 
@@ -123,6 +126,15 @@ export function SettingsClient() {
   }, []);
 
   async function refreshBootstrap() {
+    if (demoMode) {
+      setBootstrap(demoBootstrap);
+      setCodexModel(demoBootstrap.codex.model);
+      setGoogleCallbackUrl(demoBootstrap.googleCallbackUrl);
+      setPublishTestMode(demoBootstrap.publishTestMode);
+      void loadGoogleResources();
+      return;
+    }
+
     const response = await fetch(`${apiBase}/settings/bootstrap`, {
       credentials: "include"
     });
@@ -139,6 +151,12 @@ export function SettingsClient() {
   }
 
   async function loadGoogleResources() {
+    if (demoMode) {
+      setAccounts(demoGoogleAccounts);
+      setLocations(demoLocations);
+      return;
+    }
+
     const [accountsResponse, locationsResponse] = await Promise.all([
       fetch(`${apiBase}/google/accounts`, { credentials: "include" }),
       fetch(`${apiBase}/google/locations`, { credentials: "include" })
@@ -152,6 +170,15 @@ export function SettingsClient() {
   }
 
   async function submit(path: string, body: Record<string, unknown>, success: string | null) {
+    if (demoMode) {
+      await sleep(180);
+      const data = applyDemoSettingsAction(path, body);
+      if (success) {
+        toast.success(success);
+      }
+      return data;
+    }
+
     const response = await fetch(`${apiBase}${path}`, {
       method: "POST",
       credentials: "include",
@@ -213,6 +240,11 @@ export function SettingsClient() {
   }
 
   async function connectGoogle(mode: "local" | "public") {
+    if (demoMode) {
+      toast.success(mode === "local" ? "Local Google connect simulated" : "Public Google connect simulated");
+      return;
+    }
+
     const localReturnTo = `${window.location.origin}/settings?google=connected`;
     const result = await submit(
       "/google/oauth/connect-url",
@@ -234,6 +266,12 @@ export function SettingsClient() {
   }
 
   async function setLocationEnabled(locationId: string, enabled: boolean) {
+    if (demoMode) {
+      setLocations((current) => current.map((location) => location.id === locationId ? { ...location, enabled } : location));
+      toast.success(enabled ? "Location enabled" : "Location disabled");
+      return;
+    }
+
     await submit(`/google/locations/${locationId}/enabled`, { enabled }, enabled ? "Location enabled" : "Location disabled");
     await loadGoogleResources();
   }
@@ -278,6 +316,23 @@ export function SettingsClient() {
   }
 
   async function fetchCodexLoginStatus(notify: boolean) {
+    if (demoMode) {
+      const data: CodexLoginStatus = {
+        loggedIn: true,
+        loginStatus: "Demo Codex authorization is ready",
+        session: {
+          status: "ready",
+          loginUrl: "https://chatgpt.com/",
+          userCode: "RP-DEMO"
+        }
+      };
+      setCodexLogin(data);
+      if (notify) {
+        toast.success("Codex is logged in", { id: codexLoginToastId });
+      }
+      return data;
+    }
+
     const response = await fetch(`${apiBase}/settings/codex/login/status`, {
       credentials: "include"
     });
@@ -299,6 +354,61 @@ export function SettingsClient() {
       }
     }
     return data as CodexLoginStatus;
+  }
+
+  function applyDemoSettingsAction(path: string, body: Record<string, unknown>) {
+    if (path === "/settings/public-url") {
+      const publicBaseUrl = String(body.publicBaseUrl ?? demoBootstrap.publicBaseUrl);
+      const googleCallbackUrl = `${publicBaseUrl.replace(/\/$/, "")}/api/google/oauth/callback`;
+      setBootstrap((current) => current ? { ...current, publicBaseUrl, googleCallbackUrl, publicBaseUrlConfigured: true } : current);
+      setGoogleCallbackUrl(googleCallbackUrl);
+      return { publicBaseUrl, googleCallbackUrl };
+    }
+    if (path === "/settings/publish-mode") {
+      const enabled = Boolean(body.publishTestMode);
+      setBootstrap((current) => current ? { ...current, publishTestMode: enabled } : current);
+      setPublishTestMode(enabled);
+      return { publishTestMode: enabled };
+    }
+    if (path === "/settings/codex/test") {
+      return {
+        ok: true,
+        installed: true,
+        loggedIn: true,
+        codexVersion: "codex-demo 5.4.0",
+        loginStatus: "Logged in"
+      };
+    }
+    if (path === "/settings/codex/login/start") {
+      return {
+        status: "ready",
+        loginUrl: "https://chatgpt.com/",
+        userCode: "RP-DEMO"
+      };
+    }
+    if (path === "/settings/codex") {
+      const model = String(body.model ?? demoBootstrap.codex.model);
+      setBootstrap((current) => current ? { ...current, codexConfigured: true, codex: { model, configured: true } } : current);
+      return { model };
+    }
+    if (path === "/settings/google-oauth") {
+      setBootstrap((current) => current ? { ...current, googleConfigured: true } : current);
+      return { ok: true };
+    }
+    if (path === "/settings/twilio") {
+      setBootstrap((current) => current ? { ...current, twilioConfigured: true } : current);
+      return { ok: true };
+    }
+    if (path === "/twilio/test-credentials") {
+      return { status: "demo-active" };
+    }
+    if (path === "/twilio/send-test") {
+      return { queued: true };
+    }
+    if (path.includes("/discover-locations") || path.includes("/sync-reviews")) {
+      return { ok: true };
+    }
+    return { ok: true };
   }
 
   async function checkCodexLogin() {

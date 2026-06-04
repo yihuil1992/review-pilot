@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, Clock, FileText, PenLine, ShieldAlert, Star } from "lucide-react";
 
+import { demoNotificationTasks, demoReviews } from "@/lib/demo-data";
+import { demoMode } from "@/lib/demo-mode";
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
 type ReviewDto = {
@@ -52,6 +55,16 @@ export function HomeClient() {
     let canceled = false;
 
     async function loadOverview() {
+      if (demoMode) {
+        setState({
+          reviews: demoReviews as unknown as ReviewDto[],
+          tasks: demoNotificationTasks as unknown as NotificationTask[],
+          error: null,
+          loading: false
+        });
+        return;
+      }
+
       try {
         const [reviewsResponse, tasksResponse] = await Promise.all([
           fetch(`${apiBase}/reviews`, { credentials: "include" }),

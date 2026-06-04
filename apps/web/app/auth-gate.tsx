@@ -8,6 +8,7 @@ import { MessageAlert } from "@/components/product-ui";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { demoMode } from "@/lib/demo-mode";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
@@ -56,6 +57,10 @@ function AuthGateInner({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState<Message | null>(null);
 
   useEffect(() => {
+    if (demoMode) {
+      setState("bypass");
+      return;
+    }
     if (isSignedReviewLink) {
       setState("bypass");
       return;

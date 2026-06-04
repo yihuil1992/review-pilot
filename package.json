@@ -8,6 +8,7 @@
     "dev:api": "pnpm --filter @review-pilot/api dev",
     "dev:worker": "pnpm --filter @review-pilot/worker dev",
     "dev:web": "pnpm --filter @review-pilot/web dev",
+    "demo:build": "node -e \"const {spawnSync}=require('child_process'); process.env.GITHUB_PAGES='true'; process.env.NEXT_PUBLIC_DEMO_MODE='true'; process.env.NEXT_PUBLIC_BASE_PATH='/review-pilot'; const result=spawnSync('pnpm',['--filter','@review-pilot/web','build'],{stdio:'inherit',shell:true}); process.exit(result.status ?? 1);\"",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
@@ -20,4 +21,3 @@
     "typescript": "^5.8.3"
   }
 }
-
