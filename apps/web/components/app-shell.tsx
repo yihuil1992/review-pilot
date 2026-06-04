@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
 const railItems: NavItem[] = [
   { href: "/", label: "Command center", icon: Home },
   { href: "/reviews", label: "Review operations", icon: MessageSquareText },
-  { href: "/notifications", label: "Notification tasks", icon: Bell },
+  { href: "/notifications", label: "Operational tasks", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings }
 ];
 

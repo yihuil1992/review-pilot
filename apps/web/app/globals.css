@@ -1524,11 +1524,12 @@ button.rp-chip:active {
 .review-sync-card {
   display: grid;
   gap: 14px;
+  padding: 16px;
 }
 
 .review-sync-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 10px;
 }
 
@@ -1541,6 +1542,14 @@ button.rp-chip:active {
   border-radius: 10px;
   background: var(--surface-raised);
   padding: 10px 12px;
+  transition:
+    border-color var(--motion-base) var(--ease-out-quart),
+    background var(--motion-base) var(--ease-out-quart);
+}
+
+.review-sync-grid > div:hover {
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+  background: #f7fcfd;
 }
 
 .review-sync-grid span {

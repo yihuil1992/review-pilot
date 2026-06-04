@@ -120,16 +120,16 @@ export function NotificationsClient() {
             <h2>Review sync</h2>
             <p>Google reviews are checked every {reviewSync?.intervalMinutes ?? 60} minutes.</p>
           </div>
-          <span className={reviewSyncChipClass(reviewSync?.status ?? "idle")}>{reviewSync?.status ?? "idle"}</span>
+          <span className={reviewSyncChipClass(reviewSync?.status ?? "idle")}>{formatSyncStatus(reviewSync?.status ?? "idle")}</span>
         </div>
         <div className="review-sync-grid">
           <div>
             <span>Last scan</span>
-            <strong>{formatDate(reviewSync?.lastFinishedAt ?? null)}</strong>
+            <strong>{formatDate(reviewSync?.lastFinishedAt ?? null, "Not run yet")}</strong>
           </div>
           <div>
             <span>Next scan</span>
-            <strong>{formatDate(reviewSync?.nextRunAt ?? null)}</strong>
+            <strong>{formatDate(reviewSync?.nextRunAt ?? null, "Waiting for worker")}</strong>
           </div>
           <div>
             <span>Locations</span>
@@ -298,9 +298,16 @@ function reviewSyncChipClass(status: ReviewSyncStatus["status"]): string {
   return "rp-chip warning";
 }
 
-function formatDate(value: string | null): string {
+function formatSyncStatus(status: ReviewSyncStatus["status"]): string {
+  return status
+    .split("_")
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function formatDate(value: string | null, empty = "none"): string {
   if (!value) {
-    return "none";
+    return empty;
   }
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
