@@ -2328,6 +2328,10 @@ button.rp-chip:active {
     padding-bottom: 224px;
   }
 
+  .signed-workspace.signed-readonly {
+    padding-bottom: 0;
+  }
+
   .reviews-workspace:not(.signed-workspace) .review-detail-panel {
     display: none;
   }

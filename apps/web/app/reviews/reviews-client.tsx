@@ -113,6 +113,7 @@ export function ReviewsClient() {
     () => signedReview ?? visibleReviews.find((review) => review.id === selectedId) ?? visibleReviews[0] ?? null,
     [selectedId, signedReview, visibleReviews]
   );
+  const selectedReadOnly = Boolean(selected && isReviewComplete(selected));
   const locationOptions = useMemo(
     () => [{ id: "all", businessName: "All locations" }, ...locations],
     [locations]
@@ -241,7 +242,7 @@ export function ReviewsClient() {
 
   return (
     <>
-      <section className={`reviews-workspace ${signedReview ? "signed-workspace" : ""}`}>
+      <section className={`reviews-workspace ${signedReview ? "signed-workspace" : ""} ${signedReview && selectedReadOnly ? "signed-readonly" : ""}`}>
         {!signedReview ? (
           <aside className="review-queue-panel rp-card" aria-label="Review queue">
             <div className="panel-head">
@@ -366,6 +367,10 @@ export function ReviewsClient() {
               <div className="notice warning">Publish test mode is on. Publish actions update Review Pilot only and do not send replies to Google.</div>
             ) : null}
 
+            {selectedReadOnly ? (
+              <div className="notice success">{readOnlyNotice(selected)}</div>
+            ) : null}
+
             <p className="review-body">{selected.text || "No review text was provided."}</p>
 
             <section className="risk-panel">
@@ -389,13 +394,15 @@ export function ReviewsClient() {
                   <h3>AI draft</h3>
                   <p>{selected.draft ? `Version ${selected.draft.version}` : "No draft yet"}</p>
                 </div>
-                <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
-                  <Sparkles aria-hidden="true" />
-                  {selected.draft ? "Generate new draft" : "Generate reply draft"}
-                </button>
+                {!selectedReadOnly ? (
+                  <button className="button" disabled={Boolean(busy)} type="button" onClick={() => generate(selected.id)}>
+                    <Sparkles aria-hidden="true" />
+                    {selected.draft ? "Generate new draft" : "Generate reply draft"}
+                  </button>
+                ) : null}
               </div>
               <textarea readOnly value={selected.draft?.body ?? "No draft yet."} aria-label="AI draft" />
-              {selected.draft ? (
+              {selected.draft && !selectedReadOnly ? (
                 <form className="regenerate-row" onSubmit={(event) => regenerate(event, selected.id)}>
                   <input name="instruction" placeholder="Ask for changes, e.g. shorter or warmer" required />
                   <button className="button" disabled={Boolean(busy)} type="submit">Revise draft</button>
@@ -403,16 +410,18 @@ export function ReviewsClient() {
               ) : null}
             </section>
 
-            <div className="desktop-action-row">
-              <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
-                <MessageSquareText aria-hidden="true" />
-                {publishTestMode ? "Test publish" : "Publish reply"}
-              </button>
-              <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
-                <CheckCircle2 aria-hidden="true" />
-                Mark as handled
-              </button>
-            </div>
+            {!selectedReadOnly ? (
+              <div className="desktop-action-row">
+                <button className="button primary" disabled={Boolean(busy)} type="button" onClick={() => publish(selected)}>
+                  <MessageSquareText aria-hidden="true" />
+                  {publishTestMode ? "Test publish" : "Publish reply"}
+                </button>
+                <button className="button" disabled={Boolean(busy)} type="button" onClick={() => manualHandled(selected.id)}>
+                  <CheckCircle2 aria-hidden="true" />
+                  Mark as handled
+                </button>
+              </div>
+            ) : null}
           </article>
         ) : null}
 
@@ -548,6 +557,17 @@ function riskChipClass(review: ReviewDto): string {
     return "rp-chip success";
   }
   return "rp-chip warning";
+}
+
+function isReviewComplete(review: ReviewDto): boolean {
+  return review.status === "published" || review.status === "manual_handled";
+}
+
+function readOnlyNotice(review: ReviewDto): string {
+  if (review.status === "published") {
+    return "This review has already been published. The signed link is now read-only.";
+  }
+  return "This review has already been marked as handled. The signed link is now read-only.";
 }
 
 function defaultReasons(review: ReviewDto): string[] {

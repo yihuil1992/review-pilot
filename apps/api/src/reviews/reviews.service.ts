@@ -20,6 +20,7 @@ const unhandledStatuses: ReviewStatus[] = [
 
 const publishLimitPerDay = 10;
 const publishIntervalMs = 15 * 60 * 1000;
+const completedStatuses: ReviewStatus[] = ["published", "manual_handled"];
 
 @Injectable()
 export class ReviewsService {
@@ -86,6 +87,7 @@ export class ReviewsService {
 
   async generate(reviewId: string) {
     const review = await this.loadReviewForSemantic(reviewId);
+    this.assertReviewActionable(review.status);
     await this.prisma.review.update({ where: { id: reviewId }, data: { status: "analysis_pending" } });
     return this.runSemanticJob(reviewId, "semantic.generateReply", async () =>
       this.semantic.analyzeReview({
@@ -101,6 +103,7 @@ export class ReviewsService {
 
   async regenerate(reviewId: string, instruction: string) {
     const review = await this.loadReviewForSemantic(reviewId);
+    this.assertReviewActionable(review.status);
     const currentDraft = review.drafts[0]?.body;
     if (!currentDraft) {
       throw new Error("No current draft is available to regenerate");
@@ -128,6 +131,7 @@ export class ReviewsService {
     if (!review) {
       throw new Error("Review not found");
     }
+    this.assertReviewActionable(review.status);
     if (review.status === "published" && review.publishedReply === body) {
       return this.get(reviewId);
     }
@@ -157,6 +161,11 @@ export class ReviewsService {
   }
 
   async markManualHandled(reviewId: string) {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) {
+      throw new Error("Review not found");
+    }
+    this.assertReviewActionable(review.status);
     await this.prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -332,6 +341,12 @@ export class ReviewsService {
   private assertSignedReviewLink(reviewId: string, token: string | undefined) {
     if (!this.twilio.verifyReviewLink(token, reviewId)) {
       throw new UnauthorizedException("Signed review link is invalid or expired");
+    }
+  }
+
+  private assertReviewActionable(status: ReviewStatus) {
+    if (completedStatuses.includes(status)) {
+      throw new ConflictException("This review has already been handled");
     }
   }
 }
