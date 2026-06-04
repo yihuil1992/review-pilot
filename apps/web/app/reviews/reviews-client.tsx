@@ -897,6 +897,12 @@ function riskLabel(review: ReviewDto): string {
   if (review.analysis?.severity === "green") {
     return "Low risk";
   }
+  if (review.status === "published") {
+    return "Reply published";
+  }
+  if (review.status === "manual_handled") {
+    return "Manually handled";
+  }
   return review.status === "new" ? "Needs reply" : review.status;
 }
 
@@ -973,7 +979,7 @@ function draftTextareaValue(review: ReviewDto): string {
 
 function readOnlyNotice(review: ReviewDto): string {
   if (review.status === "published") {
-    return "This review has already been published. The signed link is now read-only.";
+    return "This reply has already been published. The signed link is now read-only.";
   }
   return "This review has already been marked as handled. The signed link is now read-only.";
 }
