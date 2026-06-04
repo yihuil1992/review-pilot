@@ -67,14 +67,15 @@ The bundled Redis container uses port `6380` to avoid colliding with an existing
 
 1. Start Postgres, Redis, API, worker, and web.
 2. Open the web app and create the owner password.
-3. Save the public base URL in Settings before connecting Google.
-4. Save Google OAuth client ID and secret.
-5. Connect each Google account and discover locations.
-6. Select the Codex model in Settings.
-7. Use **Test Codex** to verify the CLI is available.
-8. Use **Start browser login** to begin device-code authorization, then open the displayed link in your own browser and enter the code.
-9. Refresh login status until Settings reports Codex is logged in.
-10. Save Twilio credentials if notification tasks are needed, then validate with a test SMS.
+3. During first-run setup, the API automatically saves that password to `OWNER_PASSWORD.local.md` in the project root. This file is ignored by Git and must never be committed.
+4. Save the public base URL in Settings before connecting Google.
+5. Save Google OAuth client ID and secret.
+6. Connect each Google account and discover locations.
+7. Select the Codex model in Settings.
+8. Use **Test Codex** to verify the CLI is available.
+9. Use **Start browser login** to begin device-code authorization, then open the displayed link in your own browser and enter the code.
+10. Refresh login status until Settings reports Codex is logged in.
+11. Save Twilio credentials if notification tasks are needed, then validate with a test SMS.
 
 The default semantic path uses Codex subscription auth and does not require `OPENAI_API_KEY`.
 
@@ -109,6 +110,10 @@ Avoid serverless for the default semantic engine. Codex auth, worker jobs, and r
 Secrets are encrypted at rest with `APP_SECRET_KEY`. Owner sessions are signed with `OWNER_SESSION_SECRET`.
 
 Do not rotate either casually after production data exists. Encrypted Google refresh tokens and Twilio auth tokens need the same app key to decrypt.
+
+`OWNER_PASSWORD.local.md` is reserved for a private local owner-password reminder and is listed in `.gitignore`. Keep it on the deployment machine only.
+
+Set `OWNER_PASSWORD_NOTE_PATH` if the deployment should write this reminder somewhere outside the project root.
 
 See [docs/security.md](docs/security.md) for more detail.
 

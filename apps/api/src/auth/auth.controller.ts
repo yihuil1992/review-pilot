@@ -37,7 +37,12 @@ export class AuthController {
     const owner = await this.auth.setupOwner(input.password, input.email || null);
     const { token } = await this.auth.login(input.password);
     setSessionCookie(response, token);
-    return { ok: true, ownerConfigured: true, ownerId: owner.ownerId };
+    return {
+      ok: true,
+      ownerConfigured: true,
+      ownerId: owner.ownerId,
+      passwordNoteSaved: owner.passwordNoteSaved
+    };
   }
 
   @Post("login")

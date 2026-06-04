@@ -102,7 +102,17 @@ function AuthGateInner({ children }: { children: React.ReactNode }) {
       setMessage({ kind: "error", text: data.message ?? "Access failed" });
       return;
     }
-    setMessage({ kind: "success", text: state === "setup" ? "Owner password set" : "Signed in" });
+    if (state === "setup") {
+      const setupMessage =
+        data.passwordNoteSaved === false
+          ? "Owner password set, but the local password note could not be saved."
+          : "Owner password set and saved to OWNER_PASSWORD.local.md";
+      setMessage({ kind: data.passwordNoteSaved === false ? "error" : "success", text: setupMessage });
+      window.setTimeout(() => setState("authenticated"), data.passwordNoteSaved === false ? 2400 : 900);
+      return;
+    }
+
+    setMessage({ kind: "success", text: "Signed in" });
     setState("authenticated");
   }
 
