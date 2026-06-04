@@ -10,6 +10,8 @@ type NotificationCounts = {
   canceled: number;
 } & Record<string, number>;
 
+const reviewSyncStatusKey = "reviewSyncStatus";
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -67,6 +69,26 @@ export class NotificationsService {
 
   async sendDueNotifications(source = "manual") {
     return this.queue.enqueueScanDue(source);
+  }
+
+  async getReviewSyncStatus() {
+    const setting = await this.prisma.appSetting.findUnique({ where: { key: reviewSyncStatusKey } });
+    if (!setting?.value || typeof setting.value !== "object" || Array.isArray(setting.value)) {
+      return {
+        enabled: process.env.REVIEW_SYNC_SCHEDULER_ENABLED !== "false",
+        intervalMinutes: 60,
+        lastStartedAt: null,
+        lastFinishedAt: null,
+        nextRunAt: null,
+        status: process.env.REVIEW_SYNC_SCHEDULER_ENABLED === "false" ? "disabled" : "idle",
+        locationsScanned: 0,
+        reviewsSeen: 0,
+        created: 0,
+        updated: 0,
+        error: null
+      };
+    }
+    return setting.value;
   }
 
   async sendNow(reviewId: string) {

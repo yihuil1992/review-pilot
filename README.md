@@ -9,12 +9,14 @@ The product is intentionally narrow: open the app, see what needs attention, han
 ## What It Does
 
 - Unified Google review queue across connected locations.
+- Hourly worker sync for new Google reviews across enabled locations.
 - Optional location filtering inside review workflows.
 - Review detail modal optimized for mobile triage.
 - AI draft generation and revision through Codex subscription auth.
 - Explicit test publish mode so Google is not updated accidentally.
 - Handled-state tracking for completed reviews.
 - Twilio notification task queue for due sends, retries, cancellations, and follow-up links.
+- Operational Tasks page with Google sync status and notification task controls.
 - Production settings UI with masked configured secrets.
 - Self-hosted setup for owner-controlled credentials.
 
@@ -76,6 +78,8 @@ The bundled Redis container uses port `6380` to avoid colliding with an existing
 9. Use **Start browser login** to begin device-code authorization, then open the displayed link in your own browser and enter the code.
 10. Refresh login status until Settings reports Codex is logged in.
 11. Save Twilio credentials if notification tasks are needed, then validate with a test SMS.
+
+With the worker running, enabled Google locations are checked for new reviews about once per hour. The Tasks page shows the latest sync result, next expected scan, location count, and any sync error.
 
 The default semantic path uses Codex subscription auth and does not require `OPENAI_API_KEY`.
 

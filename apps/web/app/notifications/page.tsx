@@ -5,8 +5,8 @@ export default function NotificationsPage() {
   return (
     <AppShell
       current="/notifications"
-      title="Notification tasks"
-      subtitle="Scheduled Twilio links, retries, cancellations, and due sends in one operational queue."
+      title="Operational tasks"
+      subtitle="Monitor hourly Google review sync and scheduled Twilio notification work."
     >
       <NotificationsClient />
     </AppShell>

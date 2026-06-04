@@ -1521,6 +1521,60 @@ button.rp-chip:active {
   gap: 16px;
 }
 
+.review-sync-card {
+  display: grid;
+  gap: 14px;
+}
+
+.review-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+.review-sync-grid > div {
+  display: grid;
+  min-height: 64px;
+  align-content: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  padding: 10px 12px;
+}
+
+.review-sync-grid span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.review-sync-grid strong {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.review-sync-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.review-sync-foot svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+
+.review-sync-foot .button {
+  margin-left: auto;
+}
+
 .tasks-toolbar {
   display: grid;
   gap: 12px;
@@ -2257,6 +2311,17 @@ button.rp-chip:active {
 
   .location-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-sync-foot {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+
+  .review-sync-foot .button {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0;
   }
 
   .location-table {

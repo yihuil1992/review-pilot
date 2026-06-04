@@ -17,6 +17,11 @@ export class NotificationsController {
     return this.notifications.listTasks(notificationListQuerySchema.parse(query));
   }
 
+  @Get("review-sync-status")
+  reviewSyncStatus() {
+    return this.notifications.getReviewSyncStatus();
+  }
+
   @Post("run-due")
   runDue() {
     return this.notifications.sendDueNotifications("manual");

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { GoogleReviewSyncService } from "./google/google-review-sync.service.js";
 import { NotificationWorkerService } from "./notifications/notification-worker.service.js";
 import { PrismaService } from "./prisma.service.js";
 import { CryptoService } from "./security/crypto.service.js";
@@ -12,6 +13,7 @@ import { TwilioService } from "./twilio/twilio.service.js";
   providers: [
     CodexSubscriptionEngine,
     CryptoService,
+    GoogleReviewSyncService,
     NotificationWorkerService,
     PrismaService,
     SettingsService,

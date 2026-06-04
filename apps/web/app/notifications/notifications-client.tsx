@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ban, Filter, RefreshCw, RotateCcw, Send, Zap } from "lucide-react";
+import { Ban, Clock3, Filter, RefreshCw, RotateCcw, Send, Zap } from "lucide-react";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
@@ -32,12 +32,27 @@ type NotificationCounts = {
   canceled: number;
 } & Record<string, number>;
 
+type ReviewSyncStatus = {
+  enabled: boolean;
+  intervalMinutes: number;
+  lastStartedAt: string | null;
+  lastFinishedAt: string | null;
+  nextRunAt: string | null;
+  status: "idle" | "running" | "succeeded" | "failed" | "disabled";
+  locationsScanned: number;
+  reviewsSeen: number;
+  created: number;
+  updated: number;
+  error: string | null;
+};
+
 const statusOptions = ["all", "pending", "sent", "failed", "canceled"];
 const emptyCounts: NotificationCounts = { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0 };
 
 export function NotificationsClient() {
   const [tasks, setTasks] = useState<NotificationTask[]>([]);
   const [counts, setCounts] = useState<NotificationCounts>(emptyCounts);
+  const [reviewSync, setReviewSync] = useState<ReviewSyncStatus | null>(null);
   const [status, setStatus] = useState("all");
   const [message, setMessage] = useState<Message | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,6 +60,10 @@ export function NotificationsClient() {
   useEffect(() => {
     void loadTasks();
   }, [status]);
+
+  useEffect(() => {
+    void loadReviewSync();
+  }, []);
 
   async function loadTasks() {
     setMessage(null);
@@ -64,6 +83,14 @@ export function NotificationsClient() {
     setCounts({ ...emptyCounts, ...(data.counts ?? {}) });
   }
 
+  async function loadReviewSync() {
+    const response = await fetch(`${apiBase}/notifications/review-sync-status`, { credentials: "include" });
+    const data = await response.json().catch(() => null);
+    if (response.ok && data) {
+      setReviewSync(data);
+    }
+  }
+
   async function post(path: string, success: string) {
     setBusy(path);
     setMessage(null);
@@ -79,7 +106,7 @@ export function NotificationsClient() {
         return;
       }
       setMessage({ kind: "success", text: success });
-      await loadTasks();
+      await Promise.all([loadTasks(), loadReviewSync()]);
     } finally {
       setBusy(null);
     }
@@ -87,6 +114,51 @@ export function NotificationsClient() {
 
   return (
     <section className="tasks-page">
+      <div className="rp-card review-sync-card">
+        <div className="panel-head">
+          <div>
+            <h2>Review sync</h2>
+            <p>Google reviews are checked every {reviewSync?.intervalMinutes ?? 60} minutes.</p>
+          </div>
+          <span className={reviewSyncChipClass(reviewSync?.status ?? "idle")}>{reviewSync?.status ?? "idle"}</span>
+        </div>
+        <div className="review-sync-grid">
+          <div>
+            <span>Last scan</span>
+            <strong>{formatDate(reviewSync?.lastFinishedAt ?? null)}</strong>
+          </div>
+          <div>
+            <span>Next scan</span>
+            <strong>{formatDate(reviewSync?.nextRunAt ?? null)}</strong>
+          </div>
+          <div>
+            <span>Locations</span>
+            <strong>{reviewSync?.locationsScanned ?? 0}</strong>
+          </div>
+          <div>
+            <span>Reviews seen</span>
+            <strong>{reviewSync?.reviewsSeen ?? 0}</strong>
+          </div>
+          <div>
+            <span>New</span>
+            <strong>{reviewSync?.created ?? 0}</strong>
+          </div>
+          <div>
+            <span>Updated</span>
+            <strong>{reviewSync?.updated ?? 0}</strong>
+          </div>
+        </div>
+        {reviewSync?.error ? <div className="notice error">{reviewSync.error}</div> : null}
+        <div className="review-sync-foot">
+          <Clock3 aria-hidden="true" />
+          <span>{reviewSync?.enabled === false ? "Scheduled review sync is disabled." : "Worker updates this panel after each scheduled scan."}</span>
+          <button className="button" type="button" onClick={loadReviewSync}>
+            <RefreshCw aria-hidden="true" />
+            Refresh status
+          </button>
+        </div>
+      </div>
+
       <div className="tasks-toolbar">
         <div className="filter-stack">
           {statusOptions.map((option) => (
@@ -206,6 +278,22 @@ function severityChipClass(severity: string): string {
   }
   if (severity === "green") {
     return "rp-chip success";
+  }
+  return "rp-chip warning";
+}
+
+function reviewSyncChipClass(status: ReviewSyncStatus["status"]): string {
+  if (status === "succeeded") {
+    return "rp-chip success";
+  }
+  if (status === "failed") {
+    return "rp-chip danger";
+  }
+  if (status === "running") {
+    return "rp-chip selected";
+  }
+  if (status === "disabled") {
+    return "rp-chip";
   }
   return "rp-chip warning";
 }

@@ -35,4 +35,26 @@ export class SettingsService {
       notifyToNumber: config.notifyToNumber
     };
   }
+
+  async getGoogleOAuthSettings(): Promise<{ clientId: string; clientSecret: string }> {
+    const config = await this.prisma.appSetting.findUnique({ where: { key: "googleOAuth" } });
+    if (!config?.value || typeof config.value !== "object" || Array.isArray(config.value)) {
+      throw new Error("Google OAuth is not configured");
+    }
+
+    const value = config.value as { clientId?: string; clientSecretSecretId?: string };
+    if (!value.clientId || !value.clientSecretSecretId) {
+      throw new Error("Google OAuth is not configured");
+    }
+
+    const secret = await this.prisma.secretValue.findUnique({ where: { id: value.clientSecretSecretId } });
+    if (!secret) {
+      throw new Error("Google OAuth client secret is missing");
+    }
+
+    return {
+      clientId: value.clientId,
+      clientSecret: this.crypto.decryptSecret(secret.ciphertext)
+    };
+  }
 }
