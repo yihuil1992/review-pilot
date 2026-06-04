@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 
 import { MessageAlert } from "@/components/product-ui";
@@ -23,10 +23,14 @@ type Message = {
   text: string;
 };
 
-export function AuthGate({ children }: { children: React.ReactNode }) {
+export function AuthGate({ children, bypass = false }: { children: React.ReactNode; bypass?: boolean }) {
+  return <AuthGateInner bypass={bypass}>{children}</AuthGateInner>;
+}
+
+export function SignedReviewAuthGate({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<AuthGateFallback>{children}</AuthGateFallback>}>
-      <AuthGateInner>{children}</AuthGateInner>
+      <SignedReviewAuthGateInner>{children}</SignedReviewAuthGateInner>
     </Suspense>
   );
 }
@@ -47,12 +51,14 @@ function AuthGateFallback({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AuthGateInner({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function SignedReviewAuthGateInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const signedReview = searchParams.get("review");
   const signedLink = searchParams.get("link");
-  const isSignedReviewLink = pathname === "/reviews" && Boolean(signedReview && signedLink);
+  return <AuthGate bypass={Boolean(signedReview && signedLink)}>{children}</AuthGate>;
+}
+
+function AuthGateInner({ children, bypass }: { children: React.ReactNode; bypass: boolean }) {
   const [state, setState] = useState<AuthState>("checking");
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -61,12 +67,12 @@ function AuthGateInner({ children }: { children: React.ReactNode }) {
       setState("bypass");
       return;
     }
-    if (isSignedReviewLink) {
+    if (bypass) {
       setState("bypass");
       return;
     }
     void checkAccess();
-  }, [isSignedReviewLink]);
+  }, [bypass]);
 
   const title = useMemo(() => {
     if (state === "setup") {
