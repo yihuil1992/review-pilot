@@ -29,6 +29,7 @@ The demo is a static frontend preview with sample data. It shows the queue, revi
 - Operational Tasks page with Google sync status and notification task controls.
 - Production settings UI with masked configured secrets.
 - Self-hosted setup for owner-controlled credentials.
+- Agent-facing CLI and MCP server for structured AI/tool automation.
 
 ## Repository Shape
 
@@ -100,6 +101,8 @@ pnpm dev
 pnpm dev:web
 pnpm dev:api
 pnpm dev:worker
+pnpm --silent agent:cli -- status --json
+pnpm --silent agent:mcp
 pnpm demo:build
 pnpm build
 pnpm typecheck
@@ -109,6 +112,19 @@ pnpm semantic:spike
 ```
 
 `pnpm demo:build` matches the GitHub Pages workflow: static export, demo data, and the `/review-pilot` base path.
+
+## Agent Interfaces
+
+Review Pilot includes a thin CLI and stdio MCP server for AI agents and automation. They call the existing API and keep sensitive setup in the web Settings UI.
+
+```powershell
+$env:REVIEW_PILOT_API_BASE_URL="http://localhost:4000/api"
+$env:REVIEW_PILOT_OWNER_PASSWORD="<owner password>"
+pnpm --silent agent:cli -- reviews list --json
+pnpm --silent agent:mcp
+```
+
+See [docs/agent-interfaces.md](docs/agent-interfaces.md) for command examples, MCP tools, auth options, and safety rules.
 
 ## Deployment
 
