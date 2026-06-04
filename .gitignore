@@ -26,6 +26,7 @@ test-results/
 .env
 .env.*
 !.env.example
+OWNER_PASSWORD.local.md
 *.key
 *.pem
 
