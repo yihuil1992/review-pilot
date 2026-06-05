@@ -1,6 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@review-pilot/db";
+import { semanticJobNames, semanticQueueName, type SemanticJobData } from "@review-pilot/shared";
+import { Queue } from "bullmq";
 import { PrismaService } from "../prisma.service.js";
 import { CryptoService } from "../security/crypto.service.js";
 import { SettingsService } from "../settings/settings.service.js";
@@ -26,7 +28,10 @@ type ReviewSyncStatus = {
 };
 
 @Injectable()
-export class GoogleReviewSyncService {
+export class GoogleReviewSyncService implements OnModuleDestroy {
+  private readonly semanticQueue = new Queue<SemanticJobData>(semanticQueueName, {
+    connection: redisConnection()
+  });
   private running = false;
 
   constructor(
@@ -34,6 +39,10 @@ export class GoogleReviewSyncService {
     @Inject(CryptoService) private readonly crypto: CryptoService,
     @Inject(SettingsService) private readonly settings: SettingsService
   ) {}
+
+  async onModuleDestroy() {
+    await this.semanticQueue.close();
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async syncOnSchedule() {
@@ -167,9 +176,10 @@ export class GoogleReviewSyncService {
           });
           updated += 1;
         } else {
-          await this.prisma.review.create({
+          const createdReview = await this.prisma.review.create({
             data: reviewCreateData(location.id, googleReviewId, review)
           });
+          await this.enqueueAutomaticDraft(createdReview.id);
           created += 1;
         }
       }
@@ -177,6 +187,45 @@ export class GoogleReviewSyncService {
     } while (pageToken);
 
     return { reviewsSeen, created, updated };
+  }
+
+  private async enqueueAutomaticDraft(reviewId: string) {
+    if (process.env.REVIEW_SYNC_AUTO_GENERATE_ENABLED === "false") {
+      return;
+    }
+
+    const codex = await this.settings.getCodexSettings();
+    const [jobRun] = await Promise.all([
+      this.prisma.jobRun.create({
+        data: {
+          reviewId,
+          type: semanticJobNames.generateReply,
+          status: "queued",
+          provider: "codex-subscription",
+          model: codex.model,
+          promptVersion: "review-pilot-v1",
+          outputSchemaVersion: "review-analysis-v1"
+        }
+      }),
+      this.prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          status: "analysis_pending",
+          actions: {
+            create: {
+              type: "semantic_generate_queued",
+              metadata: { source: "google-review-sync" }
+            }
+          }
+        }
+      })
+    ]);
+
+    await this.semanticQueue.add(
+      semanticJobNames.generateReply,
+      { reviewId, jobRunId: jobRun.id },
+      semanticJobOptions(jobRun.id)
+    );
   }
 
   private async getAccessToken(googleAccountId: string): Promise<string> {
@@ -322,24 +371,88 @@ async function postForm<T>(url: string, body: Record<string, string>): Promise<T
 }
 
 async function googleFetch<T>(url: string, accessToken: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {})
-    }
+  return retryTransientGoogleRequest(async () => {
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {})
+      }
+    });
+    return parseExternalResponse<T>(response, "Google request failed");
   });
-  return parseExternalResponse<T>(response, "Google request failed");
 }
 
 async function parseExternalResponse<T>(response: Response, fallback: string): Promise<T> {
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  const data = parseJsonObject(text);
   if (!response.ok) {
-    throw new Error(data?.error_description ?? data?.error?.message ?? fallback);
+    throw new GoogleExternalError(data?.error_description ?? data?.error?.message ?? fallback, response.status);
   }
   return data as T;
+}
+
+function parseJsonObject(text: string): Record<string, any> {
+  if (!text) {
+    return {};
+  }
+  try {
+    const data = JSON.parse(text);
+    return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+async function retryTransientGoogleRequest<T>(request: () => Promise<T>): Promise<T> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      if (!(error instanceof GoogleExternalError) || !error.isTransient || attempt === maxAttempts) {
+        throw error;
+      }
+      await sleep(500 * 2 ** (attempt - 1));
+    }
+  }
+  throw new Error("Google request failed");
+}
+
+function semanticJobOptions(jobRunId: string) {
+  return {
+    jobId: jobRunId,
+    attempts: 2,
+    backoff: { type: "exponential" as const, delay: 30_000 },
+    removeOnComplete: { age: 24 * 60 * 60, count: 500 },
+    removeOnFail: { age: 7 * 24 * 60 * 60, count: 1000 }
+  };
+}
+
+function redisConnection() {
+  const url = new URL(process.env.REDIS_URL ?? "redis://localhost:6380");
+  return {
+    host: url.hostname,
+    port: Number(url.port || 6379),
+    username: url.username || undefined,
+    password: url.password || undefined,
+    db: Number(url.pathname.slice(1) || 0)
+  };
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class GoogleExternalError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+
+  get isTransient() {
+    return this.status === 429 || this.status >= 500;
+  }
 }
 
 type LocationWithAccount = Prisma.BusinessLocationGetPayload<{ include: { googleAccount: true } }>;
