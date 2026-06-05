@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { demoMode } from "@/lib/demo-mode";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
+const authCheckOverlayDelayMs = 450;
+const ownerAuthHintKey = "review-pilot.owner-authenticated";
 
 type BootstrapState = {
   ownerConfigured: boolean;
@@ -36,19 +38,7 @@ export function SignedReviewAuthGate({ children }: { children: React.ReactNode }
 }
 
 function AuthGateFallback({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <div className="min-h-svh blur-lg pointer-events-none select-none">{children}</div>
-      <div className="fixed inset-0 z-50 grid place-items-center bg-background/82 p-4 backdrop-blur-xl">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Checking access</CardTitle>
-            <CardDescription>Verifying owner session.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    </>
-  );
+  return <>{children}</>;
 }
 
 function SignedReviewAuthGateInner({ children }: { children: React.ReactNode }) {
@@ -61,8 +51,12 @@ function SignedReviewAuthGateInner({ children }: { children: React.ReactNode }) 
 function AuthGateInner({ children, bypass }: { children: React.ReactNode; bypass: boolean }) {
   const [state, setState] = useState<AuthState>("checking");
   const [message, setMessage] = useState<Message | null>(null);
+  const [showCheckingOverlay, setShowCheckingOverlay] = useState(false);
 
   useEffect(() => {
+    setMessage(null);
+    setShowCheckingOverlay(false);
+
     if (demoMode) {
       setState("bypass");
       return;
@@ -71,7 +65,27 @@ function AuthGateInner({ children, bypass }: { children: React.ReactNode; bypass
       setState("bypass");
       return;
     }
-    void checkAccess();
+
+    const controller = new AbortController();
+    const hasOwnerAuthHint = readOwnerAuthHint();
+    const overlayTimer = hasOwnerAuthHint
+      ? undefined
+      : window.setTimeout(() => {
+          setShowCheckingOverlay(true);
+        }, authCheckOverlayDelayMs);
+
+    void checkAccess(controller.signal).finally(() => {
+      if (overlayTimer) {
+        window.clearTimeout(overlayTimer);
+      }
+    });
+
+    return () => {
+      if (overlayTimer) {
+        window.clearTimeout(overlayTimer);
+      }
+      controller.abort();
+    };
   }, [bypass]);
 
   const title = useMemo(() => {
@@ -81,19 +95,32 @@ function AuthGateInner({ children, bypass }: { children: React.ReactNode; bypass
     return "Owner sign in";
   }, [state]);
 
-  async function checkAccess() {
+  async function checkAccess(signal?: AbortSignal) {
     setState("checking");
-    const [bootstrapResponse, meResponse] = await Promise.all([
-      fetch(`${apiBase}/settings/bootstrap`, { credentials: "include" }),
-      fetch(`${apiBase}/auth/me`, { credentials: "include" })
-    ]);
-    const bootstrap = await bootstrapResponse.json() as BootstrapState;
-    const me = await meResponse.json().catch(() => ({ authenticated: false }));
-    if (!bootstrap.ownerConfigured) {
-      setState("setup");
-      return;
+    try {
+      const [bootstrapResponse, meResponse] = await Promise.all([
+        fetch(`${apiBase}/settings/bootstrap`, { credentials: "include", signal }),
+        fetch(`${apiBase}/auth/me`, { credentials: "include", signal })
+      ]);
+      const bootstrap = await bootstrapResponse.json() as BootstrapState;
+      const me = await meResponse.json().catch(() => ({ authenticated: false }));
+      if (signal?.aborted) {
+        return;
+      }
+      if (!bootstrap.ownerConfigured) {
+        writeOwnerAuthHint(false);
+        setState("setup");
+        return;
+      }
+      const authenticated = Boolean(me.authenticated);
+      writeOwnerAuthHint(authenticated);
+      setState(authenticated ? "authenticated" : "login");
+    } catch {
+      if (!signal?.aborted) {
+        setMessage({ kind: "error", text: "Access check failed. Try signing in again." });
+        setState("login");
+      }
     }
-    setState(me.authenticated ? "authenticated" : "login");
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -118,58 +145,90 @@ function AuthGateInner({ children, bypass }: { children: React.ReactNode; bypass
         data.passwordNoteSaved === false
           ? "Owner password set, but the local password note could not be saved."
           : "Owner password set and saved to OWNER_PASSWORD.local.md";
+      writeOwnerAuthHint(true);
       setMessage({ kind: data.passwordNoteSaved === false ? "error" : "success", text: setupMessage });
       window.setTimeout(() => setState("authenticated"), data.passwordNoteSaved === false ? 2400 : 900);
       return;
     }
 
+    writeOwnerAuthHint(true);
     setMessage({ kind: "success", text: "Signed in" });
     setState("authenticated");
   }
 
+  const accessGranted = state === "authenticated" || state === "bypass";
+  const checkingAccess = state === "checking";
+  const showAuthOverlay = !accessGranted && (!checkingAccess || showCheckingOverlay);
+  const showAuthForm = !checkingAccess;
+
   return (
     <>
-      <div className={state === "authenticated" || state === "bypass" ? "" : "min-h-svh blur-lg pointer-events-none select-none"}>
+      <div className={showAuthOverlay ? "min-h-svh blur-lg pointer-events-none select-none" : ""}>
         {children}
       </div>
-      {state !== "authenticated" && state !== "bypass" ? (
+      {showAuthOverlay ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-background/82 p-4 backdrop-blur-xl">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <LockKeyhole aria-hidden="true" />
-              </div>
-              <CardTitle>{state === "checking" ? "Checking access" : title}</CardTitle>
+              {showAuthForm ? (
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <LockKeyhole aria-hidden="true" />
+                </div>
+              ) : null}
+              <CardTitle>{checkingAccess ? "Checking access" : title}</CardTitle>
               <CardDescription>
-                {state === "setup"
-                  ? "Create the owner password for this deployment."
-                  : "Use the owner password for this deployment."}
+                {checkingAccess
+                  ? "Verifying owner session."
+                  : state === "setup"
+                    ? "Create the owner password for this deployment."
+                    : "Use the owner password for this deployment."}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form className="flex flex-col gap-4" onSubmit={submit}>
-                <label className="flex flex-col gap-2 text-sm font-medium" htmlFor="auth-password">
-                  {state === "setup" ? "New password" : "Password"}
-                  <Input
-                    id="auth-password"
-                    name="password"
-                    type="password"
-                    minLength={state === "setup" ? 12 : undefined}
-                    disabled={state === "checking"}
-                    autoFocus={state !== "checking"}
-                    required
-                    className="h-11"
-                  />
-                </label>
-                {message ? <MessageAlert kind={message.kind}>{message.text}</MessageAlert> : null}
-                <Button size="lg" type="submit" disabled={state === "checking"}>
-                  {state === "setup" ? "Set password" : "Sign in"}
-                </Button>
-              </form>
-            </CardContent>
+            {showAuthForm ? (
+              <CardContent>
+                <form className="flex flex-col gap-4" onSubmit={submit}>
+                  <label className="flex flex-col gap-2 text-sm font-medium" htmlFor="auth-password">
+                    {state === "setup" ? "New password" : "Password"}
+                    <Input
+                      id="auth-password"
+                      name="password"
+                      type="password"
+                      minLength={state === "setup" ? 12 : undefined}
+                      autoFocus
+                      required
+                      className="h-11"
+                    />
+                  </label>
+                  {message ? <MessageAlert kind={message.kind}>{message.text}</MessageAlert> : null}
+                  <Button size="lg" type="submit">
+                    {state === "setup" ? "Set password" : "Sign in"}
+                  </Button>
+                </form>
+              </CardContent>
+            ) : null}
           </Card>
         </div>
       ) : null}
     </>
   );
+}
+
+function readOwnerAuthHint(): boolean {
+  try {
+    return window.localStorage.getItem(ownerAuthHintKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeOwnerAuthHint(authenticated: boolean) {
+  try {
+    if (authenticated) {
+      window.localStorage.setItem(ownerAuthHintKey, "true");
+      return;
+    }
+    window.localStorage.removeItem(ownerAuthHintKey);
+  } catch {
+    // Ignore storage failures; the server-side session check remains authoritative.
+  }
 }
