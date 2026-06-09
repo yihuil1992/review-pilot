@@ -20,8 +20,7 @@ export const GoogleOAuthSettingsSchema = z.object({
 export const TwilioSettingsSchema = z.object({
   accountSid: z.string().min(1),
   authToken: z.string().optional().or(z.literal("")),
-  fromNumber: z.string().min(1),
-  notifyToNumber: z.string().optional().or(z.literal(""))
+  fromNumber: z.string().min(1)
 });
 
 export const TwilioTestSmsSchema = z.object({

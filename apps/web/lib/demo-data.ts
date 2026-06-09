@@ -170,6 +170,7 @@ export const demoLocations = [
     address: "215 Harbor Ave, Portland, ME",
     enabled: true,
     googleOpenStatus: "OPEN",
+    notificationPhoneNumber: "+15550101991",
     googleAccount: { email: "owner@example.com" }
   },
   {
@@ -178,6 +179,7 @@ export const demoLocations = [
     address: "88 Lakeview Dr, Madison, WI",
     enabled: true,
     googleOpenStatus: "OPEN",
+    notificationPhoneNumber: "+15550101992",
     googleAccount: { email: "owner@example.com" }
   },
   {
@@ -186,6 +188,7 @@ export const demoLocations = [
     address: "19 Cedar St, Burlington, VT",
     enabled: false,
     googleOpenStatus: "OPEN",
+    notificationPhoneNumber: "+15550101993",
     googleAccount: { email: "owner@example.com" }
   }
 ];
@@ -205,8 +208,7 @@ export const demoBootstrap = {
     accountSid: "AC1234567890DEMO",
     authTokenConfigured: true,
     authTokenMasked: "••••••••demo",
-    fromNumber: "+15550101010",
-    notifyToNumber: "+15550101999"
+    fromNumber: "+15550101010"
   },
   googleConfigured: true,
   googleOAuth: {

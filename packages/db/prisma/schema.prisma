@@ -77,17 +77,18 @@ model GoogleAccount {
 }
 
 model BusinessLocation {
-  id                 String   @id @default(cuid())
-  googleAccountId    String
-  googleLocationName String
-  googleAccountName  String?
-  placeId            String?
-  businessName       String
-  address            String?
-  googleOpenStatus   String?
-  enabled            Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  googleAccountId         String
+  googleLocationName      String
+  googleAccountName       String?
+  placeId                 String?
+  businessName            String
+  address                 String?
+  googleOpenStatus        String?
+  notificationPhoneNumber String?
+  enabled                 Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   googleAccount GoogleAccount @relation(fields: [googleAccountId], references: [id], onDelete: Cascade)
   reviews       Review[]
@@ -98,25 +99,25 @@ model BusinessLocation {
 }
 
 model Review {
-  id                 String       @id @default(cuid())
-  businessLocationId String
-  googleReviewId     String
-  authorName         String?
-  rating             Int
-  reviewText         String?
-  reviewCreatedAt    DateTime?
-  status             ReviewStatus @default(new)
-  latestDraftId      String?
-  publishedReply     String?
-  replyPublishedAt   DateTime?
-  notifyAt           DateTime?
-  notified           Boolean      @default(false)
-  notificationSentAt DateTime?
-  notificationStatus String       @default("none")
-  notificationAttempts Int        @default(0)
+  id                    String       @id @default(cuid())
+  businessLocationId    String
+  googleReviewId        String
+  authorName            String?
+  rating                Int
+  reviewText            String?
+  reviewCreatedAt       DateTime?
+  status                ReviewStatus @default(new)
+  latestDraftId         String?
+  publishedReply        String?
+  replyPublishedAt      DateTime?
+  notifyAt              DateTime?
+  notified              Boolean      @default(false)
+  notificationSentAt    DateTime?
+  notificationStatus    String       @default("none")
+  notificationAttempts  Int          @default(0)
   notificationLastError String?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   businessLocation BusinessLocation @relation(fields: [businessLocationId], references: [id], onDelete: Cascade)
   analysis         ReviewAnalysis?
@@ -147,15 +148,15 @@ model ReviewAnalysis {
 }
 
 model ReplyDraft {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   reviewId    String
   aiBody      String
   body        String
   instruction String?
   version     Int
-  userEdited  Boolean  @default(false)
+  userEdited  Boolean   @default(false)
   editedAt    DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 

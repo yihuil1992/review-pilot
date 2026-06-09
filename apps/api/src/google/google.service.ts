@@ -232,6 +232,19 @@ export class GoogleService {
     });
   }
 
+  async setLocationNotificationPhone(locationId: string, notificationPhoneNumber: string) {
+    const location = await this.prisma.businessLocation.findUnique({ where: { id: locationId } });
+    if (!location) {
+      throw new Error("Business location not found");
+    }
+
+    return this.prisma.businessLocation.update({
+      where: { id: locationId },
+      data: { notificationPhoneNumber: notificationPhoneNumber.trim() || null },
+      include: { googleAccount: { select: { email: true } } }
+    });
+  }
+
   async syncReviews(locationId: string) {
     const location = await this.prisma.businessLocation.findUnique({
       where: { id: locationId },

@@ -25,7 +25,7 @@ export class SettingsService {
     return setting.value.replace(/\/$/, "");
   }
 
-  async getTwilioSettings(): Promise<{ accountSid: string; authToken: string; fromNumber: string; notifyToNumber: string | null }> {
+  async getTwilioSettings(): Promise<{ accountSid: string; authToken: string; fromNumber: string }> {
     const config = await this.prisma.twilioConfig.findFirst();
     if (!config) {
       throw new Error("Twilio is not configured");
@@ -39,8 +39,7 @@ export class SettingsService {
     return {
       accountSid: config.accountSid,
       authToken: this.crypto.decryptSecret(secret.ciphertext),
-      fromNumber: config.fromNumber,
-      notifyToNumber: config.notifyToNumber
+      fromNumber: config.fromNumber
     };
   }
 
