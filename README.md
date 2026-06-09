@@ -88,7 +88,7 @@ The bundled Redis container uses port `6380` to avoid colliding with an existing
 8. Use **Test Codex** to verify the CLI is available.
 9. Use **Start browser login** to begin device-code authorization, then open the displayed link in your own browser and enter the code.
 10. Refresh login status until Settings reports Codex is logged in.
-11. Save Twilio credentials if notification tasks are needed, then validate with a test SMS.
+11. Save Twilio credentials if notification tasks are needed, add each location's notification phone number, then validate with a test SMS.
 
 With the worker running, enabled Google locations are checked for new reviews about once per hour. The Tasks page shows the latest sync result, next expected scan, location count, and any sync error.
 

@@ -14,6 +14,10 @@ const locationEnabledSchema = z.object({
   enabled: z.boolean()
 });
 
+const locationNotificationPhoneSchema = z.object({
+  notificationPhoneNumber: z.string().optional().or(z.literal(""))
+});
+
 @Controller("google")
 export class GoogleController {
   constructor(@Inject(GoogleService) private readonly google: GoogleService) {}
@@ -58,6 +62,13 @@ export class GoogleController {
   setLocationEnabled(@Param("locationId") locationId: string, @Body() body: unknown) {
     const input = parseBody(locationEnabledSchema, body);
     return this.google.setLocationEnabled(locationId, input.enabled);
+  }
+
+  @Post("locations/:locationId/notification-phone")
+  @UseGuards(OwnerAuthGuard)
+  setLocationNotificationPhone(@Param("locationId") locationId: string, @Body() body: unknown) {
+    const input = parseBody(locationNotificationPhoneSchema, body);
+    return this.google.setLocationNotificationPhone(locationId, input.notificationPhoneNumber ?? "");
   }
 
   @Post("locations/:locationId/sync-reviews")

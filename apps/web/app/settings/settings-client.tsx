@@ -26,7 +26,6 @@ type BootstrapState = {
     authTokenConfigured: boolean;
     authTokenMasked: string;
     fromNumber: string;
-    notifyToNumber: string | null;
   };
   googleConfigured: boolean;
   googleOAuth: null | {
@@ -49,6 +48,7 @@ type BusinessLocation = {
   address: string | null;
   enabled: boolean;
   googleOpenStatus: string | null;
+  notificationPhoneNumber: string | null;
   googleAccount: { email: string };
 };
 
@@ -96,6 +96,7 @@ export function SettingsClient() {
   const modelMenuRef = useRef<HTMLDivElement | null>(null);
   const visibleLocations = locations.filter((location) => location.googleOpenStatus !== "CLOSED_PERMANENTLY");
   const enabledLocationCount = visibleLocations.filter((location) => location.enabled).length;
+  const enabledNotificationNumberCount = visibleLocations.filter((location) => location.enabled && location.notificationPhoneNumber).length;
 
   useEffect(() => {
     void refreshBootstrap();
@@ -273,6 +274,27 @@ export function SettingsClient() {
     }
 
     await submit(`/google/locations/${locationId}/enabled`, { enabled }, enabled ? "Location enabled" : "Location disabled");
+    await loadGoogleResources();
+  }
+
+  async function saveLocationNotificationPhone(event: FormEvent<HTMLFormElement>, locationId: string) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const notificationPhoneNumber = String(form.get("notificationPhoneNumber") ?? "");
+
+    if (demoMode) {
+      setLocations((current) => current.map((location) => (
+        location.id === locationId ? { ...location, notificationPhoneNumber: notificationPhoneNumber.trim() || null } : location
+      )));
+      toast.success("Location notification number saved");
+      return;
+    }
+
+    await submit(
+      `/google/locations/${locationId}/notification-phone`,
+      { notificationPhoneNumber },
+      "Location notification number saved"
+    );
     await loadGoogleResources();
   }
 
@@ -466,8 +488,7 @@ export function SettingsClient() {
       {
         accountSid: String(form.get("accountSid") ?? ""),
         authToken: String(form.get("authToken") ?? ""),
-        fromNumber: String(form.get("fromNumber") ?? ""),
-        notifyToNumber: String(form.get("notifyToNumber") ?? "")
+        fromNumber: String(form.get("fromNumber") ?? "")
       },
       "Twilio credentials saved"
     );
@@ -514,7 +535,9 @@ export function SettingsClient() {
     {
       label: "Twilio alerts",
       complete: Boolean(bootstrap?.twilioConfigured),
-      detail: "Used for scheduled notification links and retries."
+      detail: bootstrap?.twilioConfigured
+        ? `${enabledNotificationNumberCount} of ${enabledLocationCount} active locations have notification numbers.`
+        : "Used for scheduled notification links and retries."
     }
   ];
 
@@ -673,6 +696,7 @@ export function SettingsClient() {
             <div className="location-table" role="table" aria-label="Business locations">
               <div className="location-table-head" role="row">
                 <span>Location</span>
+                <span>Notify number</span>
                 <span>Status</span>
                 <span>Actions</span>
               </div>
@@ -683,6 +707,17 @@ export function SettingsClient() {
                     <span>{location.address ?? "No address returned"}</span>
                     <small>{location.googleAccount.email}</small>
                   </div>
+                  <form className="location-phone-form" onSubmit={(event) => saveLocationNotificationPhone(event, location.id)}>
+                    <label className="sr-only" htmlFor={`notificationPhoneNumber-${location.id}`}>Notification number for {location.businessName}</label>
+                    <input
+                      key={location.notificationPhoneNumber ?? `empty-notification-${location.id}`}
+                      id={`notificationPhoneNumber-${location.id}`}
+                      name="notificationPhoneNumber"
+                      defaultValue={location.notificationPhoneNumber ?? ""}
+                      placeholder="+1234567890"
+                    />
+                    <button className="button" type="submit">Save</button>
+                  </form>
                   <StatusPill complete={location.enabled} label={location.enabled ? "Enabled" : "Disabled"} />
                   <div className="location-actions">
                     <button
@@ -833,10 +868,6 @@ export function SettingsClient() {
           <div className="field">
             <label htmlFor="fromNumber">From number</label>
             <input key={bootstrap?.twilio?.fromNumber ?? "empty-from-number"} id="fromNumber" name="fromNumber" defaultValue={bootstrap?.twilio?.fromNumber ?? ""} placeholder="+1234567890" required />
-          </div>
-          <div className="field">
-            <label htmlFor="notifyToNumber">Notification number</label>
-            <input key={bootstrap?.twilio?.notifyToNumber ?? "empty-notify-number"} id="notifyToNumber" name="notifyToNumber" defaultValue={bootstrap?.twilio?.notifyToNumber ?? ""} placeholder="+1234567890" />
           </div>
           <div className="settings-actions span-all">
             <button className="button primary" type="submit">Save Twilio</button>

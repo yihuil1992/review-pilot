@@ -48,8 +48,7 @@ export class SettingsService {
             accountSid: twilio.accountSid,
             authTokenConfigured: Boolean(twilio.authTokenSecretId),
             authTokenMasked: "••••••••",
-            fromNumber: twilio.fromNumber,
-            notifyToNumber: twilio.notifyToNumber
+            fromNumber: twilio.fromNumber
           }
         : null,
       googleConfigured: Boolean(googleSecret && googleOAuthSettings?.clientId),
@@ -115,7 +114,7 @@ export class SettingsService {
     };
   }
 
-  async saveTwilio(settings: { accountSid: string; authToken?: string; fromNumber: string; notifyToNumber?: string }) {
+  async saveTwilio(settings: { accountSid: string; authToken?: string; fromNumber: string }) {
     const existing = await this.prisma.twilioConfig.findFirst();
     const authToken = settings.authToken?.trim();
     let authTokenSecretId = existing?.authTokenSecretId;
@@ -132,14 +131,12 @@ export class SettingsService {
         id: "singleton",
         accountSid: settings.accountSid,
         authTokenSecretId,
-        fromNumber: settings.fromNumber,
-        notifyToNumber: settings.notifyToNumber || null
+        fromNumber: settings.fromNumber
       },
       update: {
         accountSid: settings.accountSid,
         authTokenSecretId,
-        fromNumber: settings.fromNumber,
-        notifyToNumber: settings.notifyToNumber || null
+        fromNumber: settings.fromNumber
       }
     });
 
@@ -147,7 +144,6 @@ export class SettingsService {
       accountSid: settings.accountSid,
       authToken: authToken ? maskSecret(authToken) : "••••••••",
       fromNumber: settings.fromNumber,
-      notifyToNumber: settings.notifyToNumber || null,
       configured: true
     };
   }
@@ -196,7 +192,7 @@ export class SettingsService {
     };
   }
 
-  async getTwilioSettings(): Promise<{ accountSid: string; authToken: string; fromNumber: string; notifyToNumber: string | null }> {
+  async getTwilioSettings(): Promise<{ accountSid: string; authToken: string; fromNumber: string }> {
     const config = await this.prisma.twilioConfig.findFirst();
     if (!config) {
       throw new Error("Twilio is not configured");
@@ -210,8 +206,7 @@ export class SettingsService {
     return {
       accountSid: config.accountSid,
       authToken: this.crypto.decryptSecret(secret.ciphertext),
-      fromNumber: config.fromNumber,
-      notifyToNumber: config.notifyToNumber
+      fromNumber: config.fromNumber
     };
   }
 

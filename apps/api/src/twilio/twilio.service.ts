@@ -4,7 +4,7 @@ import { SettingsService } from "../settings/settings.service.js";
 import { CryptoService } from "../security/crypto.service.js";
 import { PrismaService } from "../prisma.service.js";
 
-const defaultSignedLinkTtlMs = 24 * 60 * 60 * 1000;
+const defaultSignedLinkTtlMs = 3 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class TwilioService {
@@ -70,12 +70,9 @@ export class TwilioService {
       throw new Error("Review not found");
     }
 
-    const [twilio, publicBaseUrl] = await Promise.all([
-      this.settings.getTwilioSettings(),
-      this.settings.getPublicBaseUrl()
-    ]);
-    if (!twilio.notifyToNumber) {
-      throw new Error("Twilio notification number is not configured");
+    const publicBaseUrl = await this.settings.getPublicBaseUrl();
+    if (!review.businessLocation.notificationPhoneNumber) {
+      throw new Error(`Notification phone number is not configured for ${review.businessLocation.businessName}`);
     }
 
     const pendingCount = await this.prisma.review.count({
@@ -97,7 +94,7 @@ export class TwilioService {
     ].filter(Boolean).join("\n");
 
     const response = await this.sendSms({
-      toNumber: twilio.notifyToNumber,
+      toNumber: review.businessLocation.notificationPhoneNumber,
       body: message
     });
 
