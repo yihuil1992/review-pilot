@@ -49,6 +49,8 @@ yarn-error.log*
 
 # local agent/design working state
 .impeccable/
+AGENTS.md
+agent-docs/
 
 # generated QA captures and local previews
 favicon-*.png
