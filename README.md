@@ -12,9 +12,9 @@ Try the GitHub Pages demo: [yihuil1992.github.io/review-pilot](https://yihuil199
 
 The demo is a static frontend preview with sample data. It shows the queue, review actions, notification tasks, and settings UI without calling Google, Twilio, Codex, or the production API.
 
-![Review Pilot demo command center](docs/demo-home.png)
+![Review Pilot demo command center in night mode](docs/demo-home.png)
 
-![Review Pilot demo review queue](docs/demo-review-queue.png)
+![Review Pilot demo review queue in archive mode](docs/demo-review-queue.png)
 
 ## What It Does
 
