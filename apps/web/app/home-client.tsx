@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bell, Clock, FileText, PenLine, ShieldAlert, Star } from "lucide-react";
 
 import { demoNotificationTasks, demoReviews } from "@/lib/demo-data";
-import { demoMode } from "@/lib/demo-mode";
+import { appHref, demoMode } from "@/lib/demo-mode";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
@@ -158,12 +158,12 @@ export function HomeClient() {
             <h2>Due now</h2>
             <p>{state.loading ? "Loading reviews" : `${dueReviews.length} review${dueReviews.length === 1 ? "" : "s"} shown`}</p>
           </div>
-          <Link href="/reviews">View queue</Link>
+          <Link href={appHref("/reviews")}>View queue</Link>
         </div>
         <div className="home-review-list">
           {!state.loading && dueReviews.length === 0 ? <div className="notice">No unhandled reviews in the queue.</div> : null}
           {dueReviews.map((review) => (
-            <Link href={`/reviews?review=${review.id}`} className="home-review-row" key={review.id}>
+            <Link href={appHref(`/reviews?review=${review.id}`)} className="home-review-row" key={review.id}>
               <span className="rp-avatar">{initials(review.author)}</span>
               <span className="home-review-main">
                 <span>
@@ -188,12 +188,12 @@ export function HomeClient() {
             <h2>Notification tasks</h2>
             <p>{state.loading ? "Loading tasks" : `${recentTasks.length} task${recentTasks.length === 1 ? "" : "s"} shown`}</p>
           </div>
-          <Link href="/notifications">View tasks</Link>
+          <Link href={appHref("/notifications")}>View tasks</Link>
         </div>
         <div className="activity-list">
           {!state.loading && recentTasks.length === 0 ? <div className="notice">No notification tasks in the queue.</div> : null}
           {recentTasks.map((task) => (
-            <Link href="/notifications" className="activity-row" key={task.reviewId}>
+            <Link href={appHref("/notifications")} className="activity-row" key={task.reviewId}>
               <Bell aria-hidden="true" />
               <span>
                 <strong>{task.notificationStatus}</strong>

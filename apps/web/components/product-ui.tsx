@@ -16,10 +16,7 @@ export function StatusBadge({
   return (
     <Badge
       variant={tone === "danger" ? "destructive" : tone === "neutral" ? "outline" : "secondary"}
-      className={cn(
-        tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-800",
-        tone === "warning" && "border-amber-200 bg-amber-50 text-amber-800"
-      )}
+      className={cn("rp-status-badge", `is-${tone}`)}
     >
       {children}
     </Badge>
@@ -40,11 +37,7 @@ export function MessageAlert({
   return (
     <Alert
       variant={kind === "error" ? "destructive" : "default"}
-      className={cn(
-        "items-start",
-        kind === "success" && "border-emerald-200 bg-emerald-50 text-emerald-950",
-        kind === "warning" && "border-amber-200 bg-amber-50 text-amber-950"
-      )}
+      className={cn("items-start rp-message-alert", `is-${kind}`)}
     >
       <Icon aria-hidden="true" />
       {title ? <AlertTitle>{title}</AlertTitle> : null}
