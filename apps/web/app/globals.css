@@ -5,51 +5,118 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  color-scheme: light;
-  --background: #f4f8fa;
-  --foreground: #16202a;
-  --card: #ffffff;
-  --card-foreground: #16202a;
-  --popover: #ffffff;
-  --popover-foreground: #16202a;
-  --primary: #0b6f8f;
-  --primary-foreground: #ffffff;
-  --secondary: #fbfdfe;
-  --secondary-foreground: #16202a;
-  --muted: #eaf1f5;
-  --muted-foreground: #53626f;
-  --accent: #e7f5f8;
-  --accent-foreground: #16202a;
-  --destructive: #b42318;
-  --border: #d8e2e8;
-  --input: #d8e2e8;
-  --ring: #0b6f8f;
-  --chart-1: #0b6f8f;
-  --chart-2: #147a51;
-  --chart-3: #b7791f;
-  --chart-4: #b42318;
-  --chart-5: #53626f;
-  --radius: 0.625rem;
-  --sidebar: #071827;
-  --sidebar-foreground: #f4f8fa;
-  --sidebar-primary: #0b6f8f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0d2a3f;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1f3b52;
-  --sidebar-ring: #0b6f8f;
-  --surface-raised: #fbfdfe;
-  --primary-hover: #085d78;
-  --success: #147a51;
-  --warning: #b7791f;
-  --danger: #b42318;
-  --focus: #0b6f8f33;
+  color-scheme: dark;
+  --background: #02040a;
+  --foreground: #f8fafc;
+  --card: #05070dcc;
+  --card-foreground: #f8fafc;
+  --popover: #05070d;
+  --popover-foreground: #f8fafc;
+  --primary: #f5f0dc;
+  --primary-foreground: #02040a;
+  --secondary: #101827;
+  --secondary-foreground: #f8fafc;
+  --muted: #101827;
+  --muted-foreground: #aeb8c7;
+  --accent: #aad7dc;
+  --accent-foreground: #02040a;
+  --destructive: #f08a8a;
+  --border: #ffffff24;
+  --input: #ffffff24;
+  --ring: #aad7dc;
+  --chart-1: #aad7dc;
+  --chart-2: #f5f0dc;
+  --chart-3: #8ea0b8;
+  --chart-4: #c9b58c;
+  --chart-5: #7fb7c0;
+  --radius: 0.375rem;
+  --sidebar: #05070de6;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #f5f0dc;
+  --sidebar-primary-foreground: #02040a;
+  --sidebar-accent: #101827;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #ffffff24;
+  --sidebar-ring: #aad7dc;
+  --surface-raised: #101827cc;
+  --primary-hover: #ffffff;
+  --success: #7bd7ad;
+  --warning: #f5d28a;
+  --danger: #f08a8a;
+  --success-surface: rgba(123, 215, 173, 0.11);
+  --success-border: rgba(123, 215, 173, 0.42);
+  --warning-surface: rgba(245, 210, 138, 0.12);
+  --warning-border: rgba(245, 210, 138, 0.46);
+  --danger-surface: rgba(240, 138, 138, 0.12);
+  --danger-border: rgba(240, 138, 138, 0.44);
+  --pending-surface: rgba(170, 215, 220, 0.12);
+  --pending-border: rgba(170, 215, 220, 0.46);
+  --focus: rgba(170, 215, 220, 0.32);
+  --panel-shadow: 0 22px 70px rgba(0, 0, 0, 0.54), 0 0 34px rgba(170, 215, 220, 0.12);
+  --control-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shell-scrim: rgba(2, 4, 10, 0.82);
+  --shell-scrim-strong: rgba(5, 7, 13, 0.92);
+  --star-opacity: 0.48;
   --motion-fast: 120ms;
   --motion-base: 180ms;
   --motion-slow: 240ms;
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-atlas-mode="archive"] {
+  color-scheme: light;
+  --background: #f7f8f3;
+  --foreground: #172033;
+  --card: #fffffce0;
+  --card-foreground: #172033;
+  --popover: #fffffc;
+  --popover-foreground: #172033;
+  --primary: #172033;
+  --primary-foreground: #f7f8f3;
+  --secondary: #edf0ea;
+  --secondary-foreground: #172033;
+  --muted: #edf0ea;
+  --muted-foreground: #66727f;
+  --accent: #477c86;
+  --accent-foreground: #f7f8f3;
+  --destructive: #a33d3d;
+  --border: rgba(36, 48, 64, 0.18);
+  --input: rgba(36, 48, 64, 0.2);
+  --ring: #477c86;
+  --chart-1: #477c86;
+  --chart-2: #917647;
+  --chart-3: #657486;
+  --chart-4: #8d9b73;
+  --chart-5: #b17b67;
+  --sidebar: #fffffce6;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #172033;
+  --sidebar-primary-foreground: #f7f8f3;
+  --sidebar-accent: #edf0ea;
+  --sidebar-accent-foreground: #172033;
+  --sidebar-border: rgba(36, 48, 64, 0.18);
+  --sidebar-ring: #477c86;
+  --surface-raised: #edf0eacc;
+  --primary-hover: #263247;
+  --success: #1e7652;
+  --warning: #91652c;
+  --danger: #a33d3d;
+  --success-surface: rgba(30, 118, 82, 0.1);
+  --success-border: rgba(30, 118, 82, 0.28);
+  --warning-surface: rgba(145, 101, 44, 0.12);
+  --warning-border: rgba(145, 101, 44, 0.3);
+  --danger-surface: rgba(163, 61, 61, 0.1);
+  --danger-border: rgba(163, 61, 61, 0.28);
+  --pending-surface: rgba(71, 124, 134, 0.12);
+  --pending-border: rgba(71, 124, 134, 0.34);
+  --focus: rgba(71, 124, 134, 0.22);
+  --panel-shadow: 0 18px 54px rgba(23, 32, 51, 0.12);
+  --control-shadow: 0 8px 20px rgba(23, 32, 51, 0.1);
+  --shell-scrim: rgba(255, 255, 252, 0.84);
+  --shell-scrim-strong: rgba(255, 255, 252, 0.94);
+  --star-opacity: 0.72;
 }
 
 @theme inline {
@@ -108,9 +175,38 @@
   body {
     @apply bg-background text-foreground;
     margin: 0;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100%;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 15px;
     line-height: 1.6;
+    font-feature-settings: "kern";
+    font-synthesis-weight: none;
+    text-rendering: geometricPrecision;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    opacity: var(--star-opacity);
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 16% 22%, rgba(170, 215, 220, 0.18), transparent 24rem),
+      radial-gradient(circle at 82% 10%, rgba(245, 240, 220, 0.12), transparent 21rem),
+      radial-gradient(circle at 64% 76%, rgba(127, 183, 192, 0.12), transparent 18rem),
+      radial-gradient(circle, rgba(255, 255, 255, 0.34) 0 1px, transparent 1.4px);
+    background-size: auto, auto, auto, 98px 98px;
+  }
+
+  html[data-atlas-mode="archive"] body::before {
+    background-image:
+      linear-gradient(rgba(23, 32, 51, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23, 32, 51, 0.045) 1px, transparent 1px),
+      radial-gradient(circle at 22% 18%, rgba(71, 124, 134, 0.13), transparent 22rem),
+      radial-gradient(circle at 78% 24%, rgba(145, 118, 71, 0.1), transparent 18rem),
+      radial-gradient(circle, rgba(23, 32, 51, 0.2) 0 0.8px, transparent 1.2px);
+    background-size: 72px 72px, 72px 72px, auto, auto, 138px 138px;
   }
 
   a {
@@ -137,7 +233,7 @@
 
 .rp-shell {
   min-height: 100svh;
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
 }
 
@@ -2680,5 +2776,709 @@ button.rp-chip:active {
 
   .task-actions .button {
     padding-inline: 8px;
+  }
+}
+
+/* Hoshikuzu atlas migration layer */
+.rp-mobile-top,
+.rp-command-strip,
+.rp-bottom-nav,
+.review-modal-head,
+.review-modal-actions,
+.signed-workspace .desktop-action-row {
+  background: var(--shell-scrim);
+  backdrop-filter: blur(18px);
+}
+
+.rp-mobile-top {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rp-mobile-brand,
+.rp-rail-brand {
+  gap: 12px;
+}
+
+.rp-mobile-brand strong,
+.rp-rail-brand strong {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.rp-mobile-brand small,
+.rp-rail-brand small,
+.rp-title-block p {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.rp-brand-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--card);
+  box-shadow: none;
+}
+
+.rp-brand-mark :is(svg, img) {
+  width: 34px;
+  height: 34px;
+}
+
+.rp-title-block h1 {
+  color: var(--foreground);
+  font-size: 32px;
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.rp-content {
+  position: relative;
+}
+
+.rp-rail {
+  border-right: 1px solid var(--sidebar-border);
+  background: var(--sidebar);
+  backdrop-filter: blur(18px);
+}
+
+.rp-rail-nav {
+  gap: 2px;
+}
+
+.rp-rail-link,
+.rp-bottom-link,
+.rp-theme-toggle,
+.button,
+.icon-button,
+.review-location-button,
+.review-location-option,
+.settings-select-button,
+.settings-select-option {
+  border-radius: 2px;
+}
+
+.rp-rail-link {
+  min-height: 40px;
+  border: 1px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rp-rail-link:hover,
+.rp-rail-link.active {
+  border-color: var(--sidebar-border);
+  background: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+}
+
+.rp-rail-link.active::before,
+.rp-bottom-link.active::before {
+  content: "";
+  position: absolute;
+  background: var(--ring);
+}
+
+.rp-rail-link.active::before {
+  inset-block: 10px;
+  left: 0;
+  width: 1px;
+}
+
+.rp-rail-tools {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--sidebar-border);
+  padding: 12px 8px 0;
+}
+
+.rp-theme-toggle {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  color: var(--foreground);
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  transition:
+    border-color var(--motion-base) var(--ease-out-quint),
+    background var(--motion-base) var(--ease-out-quint),
+    color var(--motion-base) var(--ease-out-quint),
+    transform var(--motion-fast) var(--ease-out-quart);
+}
+
+.rp-theme-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rp-theme-toggle:hover,
+.rp-theme-toggle:focus-visible {
+  border-color: var(--ring);
+  background: var(--surface-raised);
+  outline: 0;
+}
+
+.rp-theme-toggle:focus-visible {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.rp-theme-toggle:active {
+  transform: translateY(1px);
+}
+
+.rp-theme-toggle[data-compact="true"] {
+  min-width: 34px;
+  padding: 0;
+}
+
+.rp-theme-toggle[data-compact="true"] span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.rp-bottom-nav {
+  background: var(--shell-scrim-strong);
+}
+
+.rp-bottom-link {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rp-bottom-link.active {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--foreground);
+}
+
+.rp-bottom-link.active::before {
+  top: 5px;
+  left: 50%;
+  width: 18px;
+  height: 1px;
+  transform: translateX(-50%);
+}
+
+.rp-card,
+.card,
+.home-stat,
+.home-panel,
+.review-queue-panel,
+.review-detail-panel,
+.review-sync-card,
+.tasks-card,
+.task-card,
+.readiness-item,
+.account-row,
+.location-row,
+.empty-row,
+.location-table,
+.settings-metrics,
+.risk-panel,
+.draft-panel,
+.review-modal,
+.notice,
+.log-output {
+  border-color: var(--border);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--card) 86%, transparent);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.rp-card,
+.card,
+.review-modal {
+  backdrop-filter: blur(10px);
+}
+
+.rp-card:hover,
+.card:hover,
+.home-stat:hover,
+.home-review-row:hover,
+.activity-row:hover,
+.review-row:hover,
+.review-row:focus-visible,
+.review-row.active,
+.task-card:hover,
+.readiness-item:hover,
+.account-row:hover,
+.location-row:hover,
+.review-sync-grid > div:hover {
+  border-color: color-mix(in srgb, var(--ring) 42%, var(--border));
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  box-shadow: none;
+}
+
+.rp-card-title,
+.card h2,
+.card h3,
+.home-panel h2,
+.panel-head h2,
+.panel-head h3,
+.review-detail-head h2,
+.review-modal-head h2,
+.task-title-row h3,
+.settings-overview-head h2,
+.settings-section-head h2,
+.settings-subsection-head h3,
+.review-sync-title-row h2 {
+  color: var(--foreground);
+  font-weight: 550;
+  letter-spacing: 0.02em;
+}
+
+.panel-head p,
+.home-panel-head p,
+.home-panel p,
+.card p,
+.task-main p,
+.settings-overview-head p,
+.settings-section-head p,
+.settings-subsection-head p,
+.settings-help,
+.location-main span,
+.location-main small,
+.location-meta,
+.location-address,
+.empty-row,
+.review-detail-head p,
+.review-body,
+.review-row small,
+.review-row-top small,
+.activity-row small,
+.activity-row time,
+.home-review-main small,
+.review-sync-lead p,
+.review-sync-grid span,
+.settings-metrics span,
+.readiness-item span,
+.rp-card-subtitle,
+.rp-muted {
+  color: var(--muted-foreground);
+}
+
+.home-panel-head a,
+.panel-head a,
+.review-rating-line a,
+.review-rating-line button {
+  color: var(--foreground);
+}
+
+.home-panel-head a:hover,
+.panel-head a:hover,
+.review-rating-line a:hover,
+.review-rating-line button:not(:disabled):hover {
+  border-color: var(--ring);
+  background: var(--surface-raised);
+}
+
+.button,
+.icon-button,
+.review-location-button,
+.settings-select-button,
+.field input,
+.field textarea,
+.field select,
+.draft-panel textarea,
+.regenerate-row input,
+.settings-select-menu,
+.review-location-menu {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  color: var(--foreground);
+}
+
+.button,
+.icon-button {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.button:hover,
+.icon-button:hover,
+.icon-button:focus-visible,
+.review-location-button:hover,
+.review-location-button:focus-visible,
+.review-location-button[aria-expanded="true"],
+.settings-select-button:hover,
+.settings-select-button[aria-expanded="true"] {
+  border-color: var(--ring);
+  background: var(--surface-raised);
+}
+
+.button:focus-visible,
+.icon-button:focus-visible,
+.field input:focus,
+.field textarea:focus,
+.field select:focus,
+.draft-panel textarea:focus,
+.regenerate-row input:focus,
+.settings-select-button:focus-visible,
+.review-location-button:focus-visible {
+  border-color: var(--ring);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.button.primary,
+.rp-chip.selected,
+.rp-chip.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.button.primary:hover {
+  background: var(--primary-hover);
+  color: var(--primary-foreground);
+  box-shadow: none;
+}
+
+html[data-atlas-mode="night"] .button.primary:hover {
+  color: var(--background);
+}
+
+.rp-chip,
+.chip,
+.settings-health,
+.status-pill,
+.settings-mode-toggle {
+  border-color: var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+button.rp-chip:hover,
+button.rp-chip:focus-visible {
+  border-color: var(--ring);
+  background: var(--surface-raised);
+}
+
+.rp-chip.success,
+.chip.green,
+.notice.success,
+.settings-health.ready,
+.status-pill.ready {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.rp-chip.warning,
+.chip.yellow,
+.notice.warning,
+.task-note.warning,
+.settings-health.attention,
+.status-pill.attention,
+.settings-mode-toggle.warning,
+.demo-banner {
+  border-color: var(--warning-border);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+.rp-chip.pending,
+.draft-pending-notice {
+  border-color: var(--pending-border);
+  background: var(--pending-surface);
+  color: var(--ring);
+}
+
+.rp-chip.danger,
+.chip.red,
+.notice.error,
+.draft-failed-notice {
+  border-color: var(--danger-border);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.notice {
+  color: var(--muted-foreground);
+}
+
+.toaster .cn-toast {
+  border-color: var(--border);
+  border-radius: 2px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--control-shadow);
+}
+
+.toaster .cn-toast [data-close-button="true"],
+.toaster .cn-toast[data-type="error"] [data-close-button="true"] {
+  border-color: var(--border) !important;
+  border-radius: 2px !important;
+  background: var(--surface-raised) !important;
+  color: var(--foreground) !important;
+  box-shadow: none;
+}
+
+.home-stat {
+  min-height: 116px;
+  align-content: end;
+  gap: 8px;
+  padding: 16px;
+}
+
+.home-stat svg,
+.review-sync-icon,
+.task-icon,
+.activity-row svg,
+.risk-row svg {
+  background: transparent;
+  color: var(--ring);
+}
+
+.home-stat strong {
+  font-size: 30px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.home-stat span,
+.review-sync-grid span {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.home-stat[data-tone="warning"] svg,
+.readiness-item.attention svg {
+  color: var(--warning);
+}
+
+.home-stat[data-tone="danger"] svg {
+  color: var(--danger);
+}
+
+.home-review-row,
+.activity-row,
+.review-row,
+.review-sync-grid > div,
+.readiness-item,
+.account-row,
+.location-row,
+.location-row.compact,
+.task-card {
+  border-color: var(--border);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+}
+
+.rp-avatar,
+.google-mark {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.star-row .filled {
+  color: var(--warning);
+  filter: none;
+}
+
+.review-location-menu,
+.settings-select-menu {
+  border-radius: 2px;
+  box-shadow: var(--control-shadow);
+}
+
+.review-location-option:hover,
+.review-location-option:focus-visible,
+.settings-select-option:hover,
+.settings-select-option:focus-visible,
+.settings-select-option.selected,
+.review-location-option.selected {
+  background: var(--surface-raised);
+  color: var(--foreground);
+}
+
+.review-row.active {
+  box-shadow: inset 1px 0 0 var(--ring);
+}
+
+.google-mark {
+  color: var(--ring);
+}
+
+.review-rating-line a,
+.review-rating-line button {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-raised) 68%, transparent);
+}
+
+.risk-panel,
+.draft-panel,
+.task-note,
+.log-output {
+  background: color-mix(in srgb, var(--surface-raised) 64%, transparent);
+}
+
+.draft-panel textarea,
+.regenerate-row input,
+.field input,
+.field textarea,
+.field select {
+  border-radius: 2px;
+}
+
+.draft-pending-notice,
+.draft-failed-notice,
+.draft-edit-notice {
+  border-radius: 2px;
+}
+
+.draft-edit-notice {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.review-sync-card[data-status="succeeded"] .review-sync-icon {
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.review-sync-card[data-status="failed"] .review-sync-icon {
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.task-icon {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--pending-surface);
+}
+
+.task-icon[data-status="sent"] {
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.setup-progress-bars span {
+  border-radius: 2px;
+  background: var(--muted);
+}
+
+.setup-progress-bars .complete {
+  background: var(--ring);
+}
+
+.settings-metrics {
+  gap: 1px;
+  background: var(--border);
+}
+
+.settings-metrics div,
+.location-table-head {
+  background: var(--surface-raised);
+}
+
+.rp-status-badge,
+.rp-message-alert {
+  border-radius: 2px;
+}
+
+.rp-status-badge.is-neutral,
+.rp-message-alert.is-info {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  color: var(--foreground);
+}
+
+.rp-status-badge.is-success,
+.rp-message-alert.is-success {
+  border-color: var(--success-border);
+  background: var(--success-surface);
+  color: var(--success);
+}
+
+.rp-status-badge.is-warning,
+.rp-message-alert.is-warning {
+  border-color: var(--warning-border);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+.rp-status-badge.is-danger,
+.rp-message-alert.is-error {
+  border-color: var(--danger-border);
+  background: var(--danger-surface);
+  color: var(--danger);
+}
+
+.location-table-head {
+  color: var(--muted-foreground);
+}
+
+.review-modal-backdrop {
+  background: rgba(2, 4, 10, 0.72);
+}
+
+html[data-atlas-mode="archive"] .review-modal-backdrop {
+  background: rgba(23, 32, 51, 0.34);
+}
+
+.review-modal {
+  box-shadow: var(--panel-shadow);
+}
+
+@media (min-width: 1024px) {
+  .rp-command-strip {
+    background: var(--shell-scrim);
+  }
+
+  .rp-title-block h1 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 759px) {
+  .review-modal-head,
+  .review-modal-actions,
+  .signed-workspace .desktop-action-row {
+    background: var(--shell-scrim-strong);
   }
 }

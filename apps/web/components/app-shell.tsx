@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { demoMode } from "@/lib/demo-mode";
+import { appHref, demoMode } from "@/lib/demo-mode";
 import { LogoMark } from "@/components/logo-mark";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = {
   href: string;
@@ -49,7 +50,7 @@ export function AppShell({
   return (
     <main className="rp-shell">
       <aside className="rp-rail" aria-label="Desktop navigation">
-        <Link href="/" className="rp-rail-brand">
+        <Link href={appHref("/")} className="rp-rail-brand">
           <span className="rp-brand-mark">
             <LogoMark />
           </span>
@@ -64,7 +65,7 @@ export function AppShell({
             const Icon = item.icon;
             const active = current === (item.activePath ?? item.href);
             return (
-              <Link key={`${item.label}-${item.href}`} href={item.href} className={cn("rp-rail-link", active && "active")}>
+              <Link key={`${item.label}-${item.href}`} href={appHref(item.href)} className={cn("rp-rail-link", active && "active")}>
                 <Icon aria-hidden="true" />
                 <span>{item.label}</span>
               </Link>
@@ -72,11 +73,14 @@ export function AppShell({
           })}
         </nav>
 
+        <div className="rp-rail-tools">
+          <ThemeToggle />
+        </div>
       </aside>
 
       <section className="rp-main">
         <header className="rp-mobile-top">
-          <Link href="/" className="rp-mobile-brand">
+          <Link href={appHref("/")} className="rp-mobile-brand">
             <span className="rp-brand-mark">
               <LogoMark />
             </span>
@@ -85,6 +89,7 @@ export function AppShell({
               <small>Mobile review ops</small>
             </span>
           </Link>
+          <ThemeToggle compact />
         </header>
 
         <header className="rp-command-strip">
@@ -113,7 +118,7 @@ export function AppShell({
           const Icon = item.icon;
           const active = current === item.href;
           return (
-            <Link key={item.href} href={item.href} className={cn("rp-bottom-link", active && "active")}>
+            <Link key={item.href} href={appHref(item.href)} className={cn("rp-bottom-link", active && "active")}>
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
             </Link>
