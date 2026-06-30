@@ -26,7 +26,7 @@ export type ListReviewsOptions = {
 };
 
 export type ListNotificationTasksOptions = {
-  status?: "pending" | "sent" | "failed" | "canceled" | "none";
+  status?: "pending" | "sent" | "failed" | "canceled" | "skipped" | "none";
 };
 
 const defaultApiBaseUrl = "http://localhost:4000/api";

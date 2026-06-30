@@ -22,6 +22,8 @@ type NotificationTask = {
   severity: string | null;
   sendAvailable?: boolean;
   sendDisabledReason?: string | null;
+  rerunAvailable?: boolean;
+  rerunDisabledReason?: string | null;
 };
 
 type Message = {
@@ -35,6 +37,7 @@ type NotificationCounts = {
   sent: number;
   failed: number;
   canceled: number;
+  skipped: number;
 } & Record<string, number>;
 
 type ReviewSyncStatus = {
@@ -54,8 +57,8 @@ type ReviewSyncStatus = {
   error: string | null;
 };
 
-const statusOptions = ["all", "pending", "sent", "failed", "canceled"];
-const emptyCounts: NotificationCounts = { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0 };
+const statusOptions = ["all", "pending", "skipped", "sent", "failed", "canceled"];
+const emptyCounts: NotificationCounts = { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0, skipped: 0 };
 
 export function NotificationsClient() {
   const [tasks, setTasks] = useState<NotificationTask[]>([]);
@@ -134,7 +137,7 @@ export function NotificationsClient() {
         setMessage({ kind: "error", text: data.message ?? "Request failed" });
         return;
       }
-      setMessage({ kind: "success", text: success });
+      setMessage({ kind: "success", text: data.message ?? success });
       await Promise.all([loadTasks(), loadReviewSync()]);
     } finally {
       setBusy(null);
@@ -159,6 +162,9 @@ export function NotificationsClient() {
           return task;
         }
         if (action === "send-now") {
+          if (task.notificationStatus === "skipped") {
+            return { ...task, notificationLastError: null };
+          }
           return {
             ...task,
             notificationStatus: "sent",
@@ -169,6 +175,9 @@ export function NotificationsClient() {
         }
         if (action === "cancel") {
           return { ...task, notificationStatus: "canceled", notificationLastError: null };
+        }
+        if (task.notificationStatus === "skipped") {
+          return { ...task, notificationLastError: null };
         }
         return {
           ...task,
@@ -276,6 +285,7 @@ export function NotificationsClient() {
           {tasks.length === 0 ? <div className="notice">No notification tasks in this view.</div> : null}
           {tasks.map((task) => {
             const sendUnavailable = task.sendAvailable === false;
+            const rerunUnavailable = task.rerunAvailable === false;
             const sendActionPath = `/notifications/tasks/${task.reviewId}/send-now`;
             return (
               <article className="task-card" key={task.reviewId}>
@@ -315,8 +325,8 @@ export function NotificationsClient() {
                   </button>
                   <button
                     className="button"
-                    disabled={Boolean(busy) || task.notificationStatus === "pending" || sendUnavailable}
-                    title={sendUnavailable ? task.sendDisabledReason ?? "This notification cannot be rerun." : undefined}
+                    disabled={Boolean(busy) || task.notificationStatus === "pending" || rerunUnavailable}
+                    title={rerunUnavailable ? task.rerunDisabledReason ?? "This notification cannot be rerun." : undefined}
                     type="button"
                     onClick={() => post(`/notifications/tasks/${task.reviewId}/rerun`, "Notification requeued")}
                   >
@@ -350,6 +360,9 @@ function statusChipClass(status: string): string {
   }
   if (status === "pending") {
     return "rp-chip warning";
+  }
+  if (status === "skipped") {
+    return "rp-chip";
   }
   return "rp-chip";
 }

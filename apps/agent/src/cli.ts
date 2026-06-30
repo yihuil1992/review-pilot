@@ -83,7 +83,7 @@ async function main() {
     result = await client.markReviewHandled(id);
   } else if (scope === "notifications" && action === "list") {
     result = await client.listNotificationTasks({
-      status: enumFlag(args, "status", ["pending", "sent", "failed", "canceled", "none"])
+      status: enumFlag(args, "status", ["pending", "sent", "failed", "canceled", "skipped", "none"])
     });
   } else if (scope === "notifications" && action === "sync-status") {
     result = await client.getReviewSyncStatus();
@@ -242,7 +242,7 @@ Usage:
   review-pilot reviews publish-test <reviewId> [--body <text>] [--enable-test-mode] [--json]
   review-pilot reviews publish-live <reviewId> [--body <text>] --confirm-live [--json]
   review-pilot reviews mark-handled <reviewId> [--json]
-  review-pilot notifications list [--status pending|sent|failed|canceled|none] [--json]
+  review-pilot notifications list [--status pending|sent|failed|canceled|skipped|none] [--json]
   review-pilot notifications sync-status [--json]
   review-pilot notifications run-due [--json]
   review-pilot notifications send-now|cancel|rerun <reviewId> [--json]

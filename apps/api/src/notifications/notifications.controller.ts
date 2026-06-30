@@ -4,7 +4,7 @@ import { OwnerAuthGuard } from "../auth/owner-auth.guard.js";
 import { NotificationsService } from "./notifications.service.js";
 
 const notificationListQuerySchema = z.object({
-  status: z.enum(["pending", "sent", "failed", "canceled", "none"]).optional()
+  status: z.enum(["pending", "sent", "failed", "canceled", "skipped", "none"]).optional()
 });
 
 @Controller("notifications")

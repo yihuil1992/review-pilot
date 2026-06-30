@@ -152,6 +152,23 @@ export const demoNotificationTasks = [
     notificationAttempts: 0,
     notificationLastError: null,
     severity: "green"
+  },
+  {
+    reviewId: "demo-review-5",
+    business: "Harbor & Pine Dental",
+    author: "Sam Rivera",
+    rating: 4,
+    reviewStatus: "draft_ready",
+    notificationStatus: "skipped",
+    notifyAt: null,
+    notificationSentAt: null,
+    notificationAttempts: 0,
+    notificationLastError: null,
+    severity: "green",
+    sendAvailable: false,
+    sendDisabledReason: "Add a notification phone number for this location, then rerun this task.",
+    rerunAvailable: true,
+    rerunDisabledReason: null
   }
 ];
 
