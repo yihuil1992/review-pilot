@@ -105,9 +105,37 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     const { reviewId, source } = data;
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      select: { id: true, notificationStatus: true, status: true }
+      select: {
+        id: true,
+        notificationStatus: true,
+        status: true,
+        businessLocation: {
+          select: { notificationPhoneNumber: true }
+        }
+      }
     });
     if (!review || review.notificationStatus !== "pending" || !canSendReviewNotification(review.status)) {
+      return {
+        ok: true,
+        skipped: true,
+        reviewId
+      };
+    }
+    if (!review.businessLocation.notificationPhoneNumber) {
+      await this.prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          notificationStatus: "skipped",
+          notifyAt: null,
+          notificationLastError: null,
+          actions: {
+            create: {
+              type: "twilio_notification_skipped",
+              metadata: { source, reason: "location_notification_phone_missing" } satisfies Prisma.InputJsonObject
+            }
+          }
+        }
+      });
       return {
         ok: true,
         skipped: true,

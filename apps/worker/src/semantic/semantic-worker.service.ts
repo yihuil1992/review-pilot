@@ -160,6 +160,15 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
 
   private async persistSemanticOutput(reviewId: string, output: AnalyzeReviewOutput, instruction?: string) {
     const version = (await this.prisma.replyDraft.count({ where: { reviewId } })) + 1;
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: {
+        businessLocation: {
+          select: { notificationPhoneNumber: true }
+        }
+      }
+    });
+    const hasNotificationPhone = Boolean(review?.businessLocation.notificationPhoneNumber);
     const draft = await this.prisma.replyDraft.create({
       data: {
         reviewId,
@@ -199,10 +208,10 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
       data: {
         status: "draft_ready",
         latestDraftId: draft.id,
-        notifyAt: calculateNotifyAt(output.severity),
+        notifyAt: hasNotificationPhone ? calculateNotifyAt(output.severity) : null,
         notified: false,
         notificationSentAt: null,
-        notificationStatus: "pending",
+        notificationStatus: hasNotificationPhone ? "pending" : "skipped",
         notificationLastError: null,
         actions: {
           create: {

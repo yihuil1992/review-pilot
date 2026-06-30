@@ -125,7 +125,7 @@ server.registerTool(
     title: "List notification tasks",
     description: "List Twilio notification tasks by status.",
     inputSchema: {
-      status: z.enum(["pending", "sent", "failed", "canceled", "none"]).optional()
+      status: z.enum(["pending", "sent", "failed", "canceled", "skipped", "none"]).optional()
     }
   },
   async (input) => toToolResult(await clientFromEnv().listNotificationTasks(input))
@@ -175,7 +175,7 @@ server.registerTool(
   "rerun_notification",
   {
     title: "Rerun notification",
-    description: "Requeue a failed or canceled notification task.",
+    description: "Requeue a failed, canceled, or skipped notification task.",
     inputSchema: reviewIdSchema
   },
   async ({ reviewId }) => toToolResult(await clientFromEnv().rerunNotification(reviewId))

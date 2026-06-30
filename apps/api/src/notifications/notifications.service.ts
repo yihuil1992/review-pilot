@@ -9,9 +9,11 @@ type NotificationCounts = {
   sent: number;
   failed: number;
   canceled: number;
+  skipped: number;
 } & Record<string, number>;
 
 const reviewSyncStatusKey = "reviewSyncStatus";
+const missingPhoneReason = "Add a notification phone number for this location, then rerun this task.";
 
 @Injectable()
 export class NotificationsService {
@@ -48,11 +50,13 @@ export class NotificationsService {
       acc[item.notificationStatus] = item._count._all;
       acc.all += item._count._all;
       return acc;
-    }, { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0 });
+    }, { all: 0, pending: 0, sent: 0, failed: 0, canceled: 0, skipped: 0 });
 
     return {
       tasks: reviews.map((review) => {
-        const sendDisabledReason = notificationEligibilityReason(review.status);
+        const statusDisabledReason = notificationEligibilityReason(review.status);
+        const phoneMissing = !review.businessLocation.notificationPhoneNumber;
+        const sendDisabledReason = statusDisabledReason ?? (phoneMissing ? missingPhoneReason : null);
         return {
           reviewId: review.id,
           business: review.businessLocation.businessName,
@@ -66,7 +70,9 @@ export class NotificationsService {
           notificationLastError: review.notificationLastError,
           severity: review.analysis?.severity ?? null,
           sendAvailable: sendDisabledReason === null,
-          sendDisabledReason
+          sendDisabledReason,
+          rerunAvailable: statusDisabledReason === null && review.notificationStatus !== "pending",
+          rerunDisabledReason: statusDisabledReason
         };
       }),
       counts
@@ -101,7 +107,10 @@ export class NotificationsService {
   }
 
   async sendNow(reviewId: string) {
-    await this.assertSendable(reviewId);
+    const review = await this.assertSendable(reviewId);
+    if (!review.businessLocation.notificationPhoneNumber) {
+      return this.skipForMissingPhone(reviewId, "send_now");
+    }
     await this.prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -133,7 +142,10 @@ export class NotificationsService {
   }
 
   async rerun(reviewId: string) {
-    await this.assertSendable(reviewId);
+    const existing = await this.assertSendable(reviewId);
+    if (!existing.businessLocation.notificationPhoneNumber) {
+      return this.skipForMissingPhone(reviewId, "rerun");
+    }
     const review = await this.prisma.review.update({
       where: { id: reviewId },
       data: {
@@ -156,7 +168,13 @@ export class NotificationsService {
   private async assertSendable(reviewId: string) {
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      select: { id: true, status: true }
+      select: {
+        id: true,
+        status: true,
+        businessLocation: {
+          select: { notificationPhoneNumber: true }
+        }
+      }
     });
     if (!review) {
       throw new NotFoundException("Review not found");
@@ -165,5 +183,32 @@ export class NotificationsService {
     if (reason) {
       throw new ConflictException(reason);
     }
+    return review;
+  }
+
+  private async skipForMissingPhone(reviewId: string, source: string) {
+    const review = await this.prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        notificationStatus: "skipped",
+        notifyAt: null,
+        notified: false,
+        notificationLastError: null,
+        actions: {
+          create: {
+            type: "twilio_notification_skipped",
+            metadata: { source, reason: "location_notification_phone_missing" }
+          }
+        }
+      }
+    });
+    return {
+      ok: true,
+      skipped: true,
+      reviewId: review.id,
+      notificationStatus: review.notificationStatus,
+      notifyAt: null,
+      message: missingPhoneReason
+    };
   }
 }
