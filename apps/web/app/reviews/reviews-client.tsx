@@ -584,6 +584,10 @@ export function ReviewsClient() {
                       <strong>{review.author}</strong>
                       <small>{formatAge(review.reviewCreatedAt)}</small>
                     </span>
+                    <span className="review-row-location">
+                      <MapPin aria-hidden="true" />
+                      <span>{review.business}</span>
+                    </span>
                     <span className="star-row" aria-label={`${review.rating} stars`}>
                       {Array.from({ length: 5 }).map((_, index) => (
                         <Star key={index} aria-hidden="true" className={index < review.rating ? "filled" : ""} />
