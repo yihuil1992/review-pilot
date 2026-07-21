@@ -30,4 +30,10 @@ export function notificationEligibilityReason(status: string): string | null {
 export type NotificationSendJobData = {
   reviewId: string;
   source: string;
+  apiClientId?: string;
+};
+
+export type NotificationScanJobData = {
+  source: string;
+  apiClientId?: string;
 };

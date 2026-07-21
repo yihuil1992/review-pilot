@@ -58,6 +58,13 @@ export class AuthService {
     };
   }
 
+  async verifyOwnerPassword(password: string): Promise<void> {
+    const owner = await this.prisma.ownerUser.findFirst({ orderBy: { createdAt: "asc" } });
+    if (!owner || !(await this.crypto.verifyPassword(password, owner.passwordHash))) {
+      throw new UnauthorizedException("Owner password confirmation failed");
+    }
+  }
+
   async verifyToken(token: string | undefined): Promise<{ ownerId: string } | null> {
     if (!token) {
       return null;

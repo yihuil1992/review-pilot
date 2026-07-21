@@ -126,6 +126,8 @@ pnpm --silent agent:mcp
 
 See [docs/agent-interfaces.md](docs/agent-interfaces.md) for command examples, MCP tools, auth options, and safety rules.
 
+Internal management systems can use the versioned machine-to-machine API with scoped, revocable credentials. See [docs/external-api.md](docs/external-api.md).
+
 ## Deployment
 
 See [docs/deployment.md](docs/deployment.md) for the supported production profiles.

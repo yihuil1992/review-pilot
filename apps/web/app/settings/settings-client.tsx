@@ -73,6 +73,37 @@ type CodexRuntimeStatus = {
   error: string | null;
 };
 
+type ApiClientRecord = {
+  id: string;
+  name: string;
+  environment: "test" | "live";
+  scopes: string[];
+  allLocations: boolean;
+  locationIds: string[];
+  revokedAt: string | null;
+  credentials: Array<{
+    id: string;
+    keyPrefix: string;
+    expiresAt: string | null;
+    lastUsedAt: string | null;
+    revokedAt: string | null;
+  }>;
+};
+
+const readOnlyApiScopes = ["system:read", "reviews:read", "locations:read", "notifications:read", "settings:read", "operations:read"];
+const fullApiScopes = [
+  ...readOnlyApiScopes,
+  "reviews:write",
+  "drafts:generate",
+  "reviews:publish:test",
+  "reviews:publish:live",
+  "locations:manage",
+  "sync:run",
+  "notifications:send",
+  "notifications:manage",
+  "publish-mode:manage"
+];
+
 const codexModelOptions = [
   { value: "gpt-5.5", label: "GPT-5.5" },
   { value: "gpt-5.4", label: "GPT-5.4" },
@@ -92,6 +123,9 @@ export function SettingsClient() {
   const [publishTestMode, setPublishTestMode] = useState(false);
   const [codexLoginChecking, setCodexLoginChecking] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [apiClients, setApiClients] = useState<ApiClientRecord[]>([]);
+  const [apiEnvironment, setApiEnvironment] = useState<"test" | "live">("test");
+  const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null);
   const codexLoginPollRef = useRef(0);
   const modelMenuRef = useRef<HTMLDivElement | null>(null);
   const visibleLocations = locations.filter((location) => location.googleOpenStatus !== "CLOSED_PERMANENTLY");
@@ -149,6 +183,83 @@ export function SettingsClient() {
     }
     setPublishTestMode(Boolean(data.publishTestMode));
     void loadGoogleResources();
+    void loadIntegrationClients();
+  }
+
+  async function loadIntegrationClients() {
+    if (demoMode) {
+      setApiClients([]);
+      return;
+    }
+    const [clientsResponse, environmentResponse] = await Promise.all([
+      fetch(`${apiBase}/integrations/clients`, { credentials: "include" }),
+      fetch(`${apiBase}/integrations/environment`, { credentials: "include" })
+    ]);
+    if (clientsResponse.ok) setApiClients(await clientsResponse.json());
+    if (environmentResponse.ok) setApiEnvironment((await environmentResponse.json()).environment);
+  }
+
+  async function integrationRequest(path: string, body: Record<string, unknown>) {
+    const response = await fetch(`${apiBase}${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...csrfHeader() },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message ?? "Integration request failed");
+    await loadIntegrationClients();
+    return data;
+  }
+
+  async function createApiClient(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (demoMode) {
+      toast.info("API credentials are disabled in demo mode");
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const allLocations = form.get("allLocations") === "on";
+    const accessPreset = String(form.get("accessPreset") ?? "read");
+    const locationIds = allLocations ? [] : form.getAll("locationIds").map(String);
+    try {
+      const result = await integrationRequest("/integrations/clients", {
+        name: String(form.get("name") ?? ""),
+        environment: apiEnvironment,
+        scopes: accessPreset === "full" ? fullApiScopes : readOnlyApiScopes,
+        allLocations,
+        locationIds,
+        ownerPassword: String(form.get("ownerPassword") ?? "")
+      });
+      setRevealedApiKey(result.apiKey);
+      event.currentTarget.reset();
+      toast.success("Integration credential created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Credential creation failed");
+    }
+  }
+
+  async function rotateApiClient(clientId: string) {
+    const ownerPassword = window.prompt("Confirm the owner password to rotate this credential");
+    if (!ownerPassword) return;
+    try {
+      const result = await integrationRequest(`/integrations/clients/${clientId}/rotate`, { ownerPassword });
+      setRevealedApiKey(result.apiKey);
+      toast.success("New credential created; revoke the previous key after cutover");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Credential rotation failed");
+    }
+  }
+
+  async function revokeApiClient(clientId: string) {
+    const ownerPassword = window.prompt("Confirm the owner password to revoke this integration");
+    if (!ownerPassword) return;
+    try {
+      await integrationRequest(`/integrations/clients/${clientId}/revoke`, { ownerPassword });
+      toast.success("Integration revoked");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Credential revocation failed");
+    }
   }
 
   async function loadGoogleResources() {
@@ -740,6 +851,80 @@ export function SettingsClient() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="card settings-section">
+        <div className="settings-section-head">
+          <div>
+            <h2>External API</h2>
+            <p>Create independently revocable credentials for the internal management system. Keys are shown once.</p>
+          </div>
+          <span className={`settings-health ${apiEnvironment === "live" ? "attention" : "ready"}`}>{apiEnvironment} deployment</span>
+        </div>
+
+        {revealedApiKey ? (
+          <div className="notice success">
+            <strong>Copy this API key now</strong>
+            <p>Review Pilot stores only its hash. It cannot be displayed again.</p>
+            <div className="status-row">
+              <code className="log-output">{revealedApiKey}</code>
+              <button className="button" type="button" onClick={() => copyText(revealedApiKey)}><Copy aria-hidden="true" />Copy key</button>
+              <button className="button" type="button" onClick={() => setRevealedApiKey(null)}>Hide</button>
+            </div>
+          </div>
+        ) : null}
+
+        <form className="settings-subsection settings-subsection-wide" onSubmit={createApiClient}>
+          <div className="settings-form-grid">
+            <div className="field">
+              <label htmlFor="apiClientName">Integration name</label>
+              <input id="apiClientName" name="name" placeholder="Internal management system" required />
+            </div>
+            <div className="field">
+              <label htmlFor="apiAccessPreset">Access preset</label>
+              <select id="apiAccessPreset" name="accessPreset" defaultValue="read">
+                <option value="read">Read only</option>
+                <option value="full">Full operations, including live actions</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="apiOwnerPassword">Owner password confirmation</label>
+              <input id="apiOwnerPassword" name="ownerPassword" type="password" required />
+            </div>
+            <label className="settings-mode-toggle ready">
+              <input name="allLocations" type="checkbox" />
+              <span>Allow current and future locations</span>
+            </label>
+          </div>
+          {visibleLocations.length ? (
+            <div className="settings-actions" aria-label="Location grants">
+              {visibleLocations.map((location) => (
+                <label className="status-pill" key={location.id}>
+                  <input type="checkbox" name="locationIds" value={location.id} />
+                  {location.businessName}
+                </label>
+              ))}
+            </div>
+          ) : <p className="settings-help">No location grants are available yet. Select all locations only if this client should inherit future locations.</p>}
+          <button className="button primary" type="submit">Create API credential</button>
+        </form>
+
+        <div className="accounts-compact-list">
+          {apiClients.length ? apiClients.map((client) => (
+            <div className="account-row compact" key={client.id}>
+              <div className="account-main">
+                <strong>{client.name}</strong>
+                <span>{client.scopes.length} scopes · {client.allLocations ? "all locations" : `${client.locationIds.length} location grants`}</span>
+                <small>{client.credentials.filter((credential) => !credential.revokedAt).map((credential) => credential.keyPrefix).join(", ") || "No active keys"}</small>
+              </div>
+              <StatusPill complete={!client.revokedAt} label={client.revokedAt ? "Revoked" : client.environment} />
+              <div className="settings-actions">
+                <button className="button" type="button" disabled={Boolean(client.revokedAt)} onClick={() => rotateApiClient(client.id)}>Rotate</button>
+                <button className="button danger" type="button" disabled={Boolean(client.revokedAt)} onClick={() => revokeApiClient(client.id)}>Revoke</button>
+              </div>
+            </div>
+          )) : <div className="empty-row">No external API clients have been created.</div>}
         </div>
       </section>
 

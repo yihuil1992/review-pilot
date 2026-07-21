@@ -6,6 +6,7 @@ import { Queue } from "bullmq";
 import { PrismaService } from "../prisma.service.js";
 import { CryptoService } from "../security/crypto.service.js";
 import { SettingsService } from "../settings/settings.service.js";
+import { WebhookEmitterService } from "../webhooks/webhook-emitter.service.js";
 
 const reviewSyncStatusKey = "reviewSyncStatus";
 const reviewSyncIntervalMs = 60 * 60 * 1000;
@@ -37,7 +38,8 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(CryptoService) private readonly crypto: CryptoService,
-    @Inject(SettingsService) private readonly settings: SettingsService
+    @Inject(SettingsService) private readonly settings: SettingsService,
+    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService
   ) {}
 
   async onModuleDestroy() {
@@ -136,6 +138,18 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
     }
   }
 
+  async syncOne(locationId: string, source: string) {
+    const location = await this.prisma.businessLocation.findUnique({ where: { id: locationId }, include: { googleAccount: true } });
+    if (!location) throw new Error("Business location not found");
+    if (!location.enabled || location.googleOpenStatus === "CLOSED_PERMANENTLY") {
+      throw new Error("Business location is not enabled for review sync");
+    }
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const result = await this.syncLocation(location, { start, end });
+    return { ok: true, source, locationId, ...result };
+  }
+
   private async syncLocation(location: LocationWithAccount, syncWindow: { start: Date; end: Date }) {
     const token = await this.getAccessToken(location.googleAccountId);
     const reviewCollectionName = buildReviewCollectionName(location);
@@ -170,15 +184,17 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
         });
 
         if (existing) {
-          await this.prisma.review.update({
+          const savedReview = await this.prisma.review.update({
             where: { id: existing.id },
             data: reviewUpdateData(review)
           });
+          await this.webhooks.emitAll({ eventType: "review.updated", resourceType: "review", resourceId: savedReview.id, resourceVersion: savedReview.updatedAt.toISOString(), data: { locationId: location.id, status: savedReview.status } });
           updated += 1;
         } else {
           const createdReview = await this.prisma.review.create({
             data: reviewCreateData(location.id, googleReviewId, review)
           });
+          await this.webhooks.emitAll({ eventType: "review.created", resourceType: "review", resourceId: createdReview.id, resourceVersion: createdReview.updatedAt.toISOString(), data: { locationId: location.id, status: createdReview.status, rating: createdReview.rating } });
           await this.enqueueAutomaticDraft(createdReview.id);
           created += 1;
         }

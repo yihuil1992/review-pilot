@@ -17,6 +17,24 @@ import { CodexRuntimeService } from "./settings/codex-runtime.service.js";
 import { SettingsService } from "./settings/settings.service.js";
 import { TwilioController } from "./twilio/twilio.controller.js";
 import { TwilioService } from "./twilio/twilio.service.js";
+import { ApiAuditInterceptor } from "./integrations/api-audit.interceptor.js";
+import { ApiClientService } from "./integrations/api-client.service.js";
+import { ApiIdempotencyService } from "./integrations/api-idempotency.service.js";
+import { ApiKeyGuard } from "./integrations/api-key.guard.js";
+import { ApiOperationsService } from "./integrations/api-operations.service.js";
+import { ApiRateLimitService } from "./integrations/api-rate-limit.service.js";
+import { ApiScopeGuard } from "./integrations/api-scope.guard.js";
+import { ExternalCommandQueueService } from "./integrations/external-command-queue.service.js";
+import { ExternalDataService } from "./integrations/external-data.service.js";
+import { ExternalLocationsController } from "./integrations/external-locations.controller.js";
+import { ExternalNotificationsController } from "./integrations/external-notifications.controller.js";
+import { ExternalOpenApiController } from "./integrations/external-openapi.controller.js";
+import { ExternalOperationsController } from "./integrations/external-operations.controller.js";
+import { ExternalReviewsController } from "./integrations/external-reviews.controller.js";
+import { ExternalSettingsController } from "./integrations/external-settings.controller.js";
+import { ExternalSystemController } from "./integrations/external-system.controller.js";
+import { IntegrationCredentialsController } from "./integrations/integration-credentials.controller.js";
+import { WebhookService } from "./integrations/webhook.service.js";
 
 @Module({
   controllers: [
@@ -26,7 +44,15 @@ import { TwilioService } from "./twilio/twilio.service.js";
     NotificationsController,
     ReviewsController,
     SettingsController,
-    TwilioController
+    TwilioController,
+    ExternalLocationsController,
+    ExternalNotificationsController,
+    ExternalOpenApiController,
+    ExternalOperationsController,
+    ExternalReviewsController,
+    ExternalSettingsController,
+    ExternalSystemController,
+    IntegrationCredentialsController
   ],
   providers: [
     AuthService,
@@ -39,7 +65,17 @@ import { TwilioService } from "./twilio/twilio.service.js";
     ReviewsService,
     SemanticQueueService,
     SettingsService,
-    TwilioService
+    TwilioService,
+    ApiAuditInterceptor,
+    ApiClientService,
+    ApiIdempotencyService,
+    ApiKeyGuard,
+    ApiOperationsService,
+    ApiRateLimitService,
+    ApiScopeGuard,
+    ExternalCommandQueueService,
+    ExternalDataService,
+    WebhookService
   ]
 })
 export class AppModule {}

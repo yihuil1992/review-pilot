@@ -9,6 +9,8 @@ import {
 import { Job, Worker } from "bullmq";
 import { PrismaService } from "../prisma.service.js";
 import { CodexSubscriptionEngine } from "./codex-subscription.engine.js";
+import { ApiOperationTrackerService } from "../integrations/api-operation-tracker.service.js";
+import { WebhookEmitterService } from "../webhooks/webhook-emitter.service.js";
 
 @Injectable()
 export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
@@ -17,7 +19,9 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(CodexSubscriptionEngine) private readonly semantic: CodexSubscriptionEngine
+    @Inject(CodexSubscriptionEngine) private readonly semantic: CodexSubscriptionEngine,
+    @Inject(ApiOperationTrackerService) private readonly operations: ApiOperationTrackerService,
+    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService
   ) {}
 
   onModuleInit() {
@@ -42,6 +46,7 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
       where: { id: jobRunId },
       data: { status: "running", startedAt: new Date() }
     });
+    await this.operations.startByJobRunId(jobRunId);
 
     try {
       const output =
@@ -60,7 +65,16 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
         where: { id: jobRunId },
         data: { status: "succeeded", finishedAt: new Date() }
       });
-      return { reviewId, draftId: draft.id };
+      const result = { reviewId, draftId: draft.id, draftVersion: draft.version };
+      await this.operations.succeedByJobRunId(jobRunId, result);
+      await this.webhooks.emitForJob({ jobRunId }, {
+        eventType: "draft.ready",
+        resourceType: "review",
+        resourceId: reviewId,
+        resourceVersion: draft.createdAt.toISOString(),
+        data: result
+      });
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message.slice(0, 1000) : "Semantic job failed";
       await this.prisma.jobRun.update({
@@ -76,6 +90,7 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
         where: { id: reviewId },
         data: { status: "failed" }
       });
+      await this.operations.failByJobRunId(jobRunId, error);
       throw new Error(message);
     }
   }
