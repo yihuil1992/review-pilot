@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import {
   notificationJobNames,
   notificationQueueName,
+  type NotificationScanJobData,
   type NotificationSendJobData
 } from "@review-pilot/shared";
 import { Queue } from "bullmq";
@@ -12,10 +13,10 @@ export class NotificationQueueService implements OnModuleDestroy {
     connection: redisConnection()
   });
 
-  async enqueueScanDue(source: string) {
+  async enqueueScanDue(source: string, apiClientId?: string) {
     const job = await this.queue.add(
       notificationJobNames.scanDue,
-      { source },
+      { source, apiClientId } satisfies NotificationScanJobData,
       {
         attempts: 1,
         removeOnComplete: { age: 24 * 60 * 60, count: 100 },

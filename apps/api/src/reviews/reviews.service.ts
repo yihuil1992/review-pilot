@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Prisma, ReviewSeverity, ReviewStatus } from "@review-pilot/db";
 import { assessReplyPublishRisk } from "@review-pilot/shared";
 import { PrismaService } from "../prisma.service.js";
@@ -116,7 +116,7 @@ export class ReviewsService {
     return { queued: true, job, review: await this.get(reviewId) };
   }
 
-  async publish(reviewId: string, body: string) {
+  async publish(reviewId: string, body: string, source = "owner") {
     const finalBody = body.trim();
     if (!finalBody) {
       throw new BadRequestException("Reply body is required");
@@ -158,7 +158,7 @@ export class ReviewsService {
           create: {
             type: "published",
             metadata: {
-              source: "owner",
+              source,
               testMode: publishTestMode,
               userEditedDraft: Boolean(draft?.userEdited),
               manualRisk
@@ -174,7 +174,7 @@ export class ReviewsService {
     return this.notifications.sendDueNotifications("legacy_reviews_endpoint");
   }
 
-  async markManualHandled(reviewId: string) {
+  async markManualHandled(reviewId: string, source = "owner") {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) {
       throw new Error("Review not found");
@@ -184,9 +184,21 @@ export class ReviewsService {
       where: { id: reviewId },
       data: {
         status: "manual_handled",
-        actions: { create: { type: "manual_handled", metadata: { source: "owner" } } }
+        actions: { create: { type: "manual_handled", metadata: { source } } }
       }
     });
+    return this.get(reviewId);
+  }
+
+  async editLatestDraft(reviewId: string, body: string, expectedVersion: number) {
+    const draft = await this.prisma.replyDraft.findFirst({ where: { reviewId }, orderBy: { version: "desc" } });
+    if (!draft) {
+      throw new NotFoundException("Review draft not found");
+    }
+    if (draft.version !== expectedVersion) {
+      throw new ConflictException("Draft changed after the supplied expectedVersion value");
+    }
+    await this.saveLatestDraftEdit(reviewId, body);
     return this.get(reviewId);
   }
 

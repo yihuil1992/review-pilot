@@ -20,6 +20,8 @@
     "start:worker": "pnpm db:deploy && pnpm --filter @review-pilot/worker start",
     "start:web": "pnpm --filter @review-pilot/web start",
     "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:external-api-smoke": "pnpm build:api && node scripts/smoke-external-api.mjs",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter @review-pilot/db prisma generate",
     "db:deploy": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate deploy",

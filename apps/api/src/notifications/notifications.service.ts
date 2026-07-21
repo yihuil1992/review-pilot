@@ -79,8 +79,8 @@ export class NotificationsService {
     };
   }
 
-  async sendDueNotifications(source = "manual") {
-    return this.queue.enqueueScanDue(source);
+  async sendDueNotifications(source = "manual", apiClientId?: string) {
+    return this.queue.enqueueScanDue(source, apiClientId);
   }
 
   async getReviewSyncStatus() {

@@ -39,3 +39,15 @@ Before pushing this project:
 Google Business Profile OAuth requires consent screen setup, OAuth credentials, and a Google account that owns or manages the target locations.
 
 Twilio SMS may require sender registration or verification depending on country, number type, and account status.
+
+## External API
+
+- External integrations use independently revocable opaque API keys, never the owner password or browser session.
+- Only a hash of each API key is stored. Plaintext is displayed once at creation or rotation.
+- API clients are bound to `REVIEW_PILOT_ENV` and explicit scopes plus location grants.
+- Test and live deployments should use separate databases. A test client is rejected by a live deployment and vice versa.
+- Live Google publishing, real Twilio sends, and disabling publish test mode require live environment checks, dedicated scopes, confirmation, rate-limit capacity, idempotency, and durable audit start.
+- Webhook secrets are encrypted with `APP_SECRET_KEY`; outbound bodies are signed and retried by the worker.
+- Set explicit production `WEB_ORIGIN` and `TRUST_PROXY`. Network allowlists are defense in depth, not authentication.
+
+See [External API](external-api.md) for scopes, rotation, errors, webhooks, and incident response.

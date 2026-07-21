@@ -55,6 +55,19 @@ Required persistent data:
 
 Use a process manager such as Docker Compose, pm2, systemd, or launchd-equivalent supervision. All services should restart on failure.
 
+### External API ingress
+
+When an internal management system calls `/api/v1`:
+
+- prefer a private route, VPN, Cloudflare Access, mTLS, or ingress IP allowlist in addition to HTTPS;
+- set `REVIEW_PILOT_ENV=live` only on production and use a separate `test` deployment/database for integration testing;
+- set `WEB_ORIGIN` to the exact browser UI origins, comma-separated when necessary;
+- set `TRUST_PROXY` only for the known reverse-proxy topology;
+- keep Redis available because high-impact API actions fail closed when the distributed limiter is unavailable;
+- run the worker for external sync commands, operation completion, webhook retries, and retention cleanup.
+
+Create and rotate machine credentials from the owner Settings UI after deployment. See [External API](external-api.md).
+
 ## Backups
 
 Back up Postgres and the deployment secrets together.

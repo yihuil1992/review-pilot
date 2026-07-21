@@ -5,12 +5,15 @@ import {
   notificationJobNames,
   notificationQueueName,
   notifiableReviewStatuses,
+  type NotificationScanJobData,
   type NotificationSendJobData
 } from "@review-pilot/shared";
 import { Prisma, ReviewStatus } from "@review-pilot/db";
 import { Job, Queue, Worker } from "bullmq";
 import { PrismaService } from "../prisma.service.js";
 import { TwilioService } from "../twilio/twilio.service.js";
+import { ApiOperationTrackerService } from "../integrations/api-operation-tracker.service.js";
+import { WebhookEmitterService } from "../webhooks/webhook-emitter.service.js";
 
 const notifiableStatuses = [...notifiableReviewStatuses] as ReviewStatus[];
 
@@ -24,7 +27,9 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(TwilioService) private readonly twilio: TwilioService
+    @Inject(TwilioService) private readonly twilio: TwilioService,
+    @Inject(ApiOperationTrackerService) private readonly operations: ApiOperationTrackerService,
+    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService
   ) {}
 
   onModuleInit() {
@@ -61,17 +66,37 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
   }
 
   private async process(job: Job) {
-    if (job.name === notificationJobNames.scanDue) {
-      return this.scanDue(String(job.data?.source ?? "worker"));
+    const queueJobId = String(job.id);
+    await this.operations.startByQueueJobId(queueJobId);
+    try {
+      let result: Record<string, unknown>;
+      if (job.name === notificationJobNames.scanDue) {
+        result = await this.scanDue(job.data as NotificationScanJobData);
+      } else if (job.name === notificationJobNames.send) {
+        const data = job.data as NotificationSendJobData;
+        result = await this.sendOne(job, data);
+        const event = {
+          eventType: "notification.updated",
+          resourceType: "review",
+          resourceId: data.reviewId,
+          resourceVersion: new Date().toISOString(),
+          data: result
+        } as const;
+        if (data.apiClientId) await this.webhooks.emit(data.apiClientId, event);
+        else await this.webhooks.emitForJob({ queueJobId }, event);
+      } else {
+        throw new Error(`Unsupported notification job: ${job.name}`);
+      }
+      await this.operations.succeedByQueueJobId(queueJobId, result);
+      return result;
+    } catch (error) {
+      await this.operations.failByQueueJobId(queueJobId, error);
+      throw error;
     }
-    if (job.name === notificationJobNames.send) {
-      const data = job.data as NotificationSendJobData;
-      return this.sendOne(job, data);
-    }
-    throw new Error(`Unsupported notification job: ${job.name}`);
   }
 
-  private async scanDue(source: string) {
+  private async scanDue(input: NotificationScanJobData) {
+    const source = String(input?.source ?? "worker");
     const dueReviews = await this.prisma.review.findMany({
       where: {
         notificationStatus: "pending",
@@ -87,7 +112,7 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     });
 
     for (const review of dueReviews) {
-      await this.queue.add(notificationJobNames.send, { reviewId: review.id, source }, {
+      await this.queue.add(notificationJobNames.send, { reviewId: review.id, source, apiClientId: input.apiClientId }, {
         attempts: 3,
         backoff: { type: "exponential", delay: 60_000 },
         removeOnComplete: { age: 24 * 60 * 60, count: 500 },

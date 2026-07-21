@@ -32,6 +32,32 @@ enum ReviewPriority {
   urgent
 }
 
+enum ApiClientEnvironment {
+  test
+  live
+}
+
+enum ApiOperationStatus {
+  queued
+  running
+  succeeded
+  failed
+  canceled
+}
+
+enum ApiIdempotencyStatus {
+  processing
+  completed
+  failed
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  delivering
+  delivered
+  failed
+}
+
 model OwnerUser {
   id           String   @id @default(cuid())
   email        String?
@@ -92,6 +118,7 @@ model BusinessLocation {
 
   googleAccount GoogleAccount @relation(fields: [googleAccountId], references: [id], onDelete: Cascade)
   reviews       Review[]
+  apiClientLocations ApiClientLocation[]
 
   @@unique([googleAccountId, googleLocationName])
   @@index([enabled])
@@ -218,4 +245,165 @@ model SystemLog {
   createdAt DateTime @default(now())
 
   @@index([level, createdAt])
+}
+
+model ApiClient {
+  id           String               @id @default(cuid())
+  name         String
+  environment  ApiClientEnvironment
+  scopes       String[]
+  allLocations Boolean              @default(false)
+  revokedAt    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  credentials       ApiCredential[]
+  locationGrants    ApiClientLocation[]
+  operations        ApiOperation[]
+  idempotencyRecords ApiIdempotencyRecord[]
+  auditEvents       ApiAuditEvent[]
+  webhookEndpoints  WebhookEndpoint[]
+
+  @@index([environment, revokedAt])
+}
+
+model ApiCredential {
+  id           String    @id @default(cuid())
+  apiClientId  String
+  keyPrefix    String    @unique
+  secretHash   String
+  expiresAt    DateTime?
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  apiClient   ApiClient       @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  operations  ApiOperation[]
+  auditEvents ApiAuditEvent[]
+
+  @@index([apiClientId, revokedAt])
+}
+
+model ApiClientLocation {
+  apiClientId String
+  locationId  String
+  createdAt   DateTime @default(now())
+
+  apiClient ApiClient        @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  location  BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([apiClientId, locationId])
+  @@index([locationId])
+}
+
+model ApiOperation {
+  id              String             @id @default(cuid())
+  apiClientId     String
+  apiCredentialId String
+  requestId       String
+  type            String
+  status          ApiOperationStatus @default(queued)
+  resourceType    String?
+  resourceId      String?
+  locationId      String?
+  queueJobId      String?
+  jobRunId        String?
+  result          Json?
+  error           Json?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  apiClient     ApiClient     @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  apiCredential ApiCredential @relation(fields: [apiCredentialId], references: [id], onDelete: Restrict)
+  idempotencyRecord ApiIdempotencyRecord?
+
+  @@index([apiClientId, createdAt])
+  @@index([jobRunId])
+  @@index([queueJobId])
+  @@index([status, createdAt])
+}
+
+model ApiIdempotencyRecord {
+  id                 String               @id @default(cuid())
+  apiClientId        String
+  operationId        String               @unique
+  action             String
+  idempotencyKey     String
+  requestFingerprint String
+  status             ApiIdempotencyStatus @default(processing)
+  responseStatus     Int?
+  responseBody       Json?
+  expiresAt          DateTime
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  apiClient ApiClient    @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  operation ApiOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+
+  @@unique([apiClientId, action, idempotencyKey])
+  @@index([expiresAt])
+}
+
+model ApiAuditEvent {
+  id              String   @id @default(cuid())
+  apiClientId     String?
+  apiCredentialId String?
+  requestId       String
+  action          String
+  targetType      String?
+  targetId        String?
+  result          String
+  httpStatus      Int?
+  sourceIp        String?
+  userAgent       String?
+  durationMs      Int?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  apiClient     ApiClient?     @relation(fields: [apiClientId], references: [id], onDelete: SetNull)
+  apiCredential ApiCredential? @relation(fields: [apiCredentialId], references: [id], onDelete: SetNull)
+
+  @@index([apiClientId, createdAt])
+  @@index([requestId])
+  @@index([createdAt])
+}
+
+model WebhookEndpoint {
+  id              String   @id @default(cuid())
+  apiClientId     String
+  url             String
+  events          String[]
+  secretEncrypted String
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  apiClient  ApiClient         @relation(fields: [apiClientId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([apiClientId, active])
+}
+
+model WebhookDelivery {
+  id          String                @id @default(cuid())
+  endpointId  String
+  eventId     String
+  eventType   String
+  payload     Json
+  status      WebhookDeliveryStatus @default(pending)
+  attempts    Int                   @default(0)
+  nextAttemptAt DateTime?
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@unique([endpointId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
 }
