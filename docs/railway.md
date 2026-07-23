@@ -45,7 +45,7 @@ REDIS_URL=${{Redis.REDIS_URL}}
 API_PORT=4000
 PORT=4000
 HOSTNAME=::
-CODEX_MODEL=gpt-5.4
+CODEX_MODEL=gpt-5.6-sol
 CODEX_HOME=/app/review-pilot-state/codex-home
 CODEX_WORKDIR=/app/review-pilot-state/codex-workdir
 ```

@@ -105,9 +105,10 @@ const fullApiScopes = [
 ];
 
 const codexModelOptions = [
+  { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+  { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+  { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
   { value: "gpt-5.5", label: "GPT-5.5" },
-  { value: "gpt-5.4", label: "GPT-5.4" },
-  { value: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
   { value: "custom", label: "Custom" }
 ];
 const codexLoginToastId = "codex-login";
@@ -116,7 +117,7 @@ export function SettingsClient() {
   const [bootstrap, setBootstrap] = useState<BootstrapState | null>(null);
   const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
   const [locations, setLocations] = useState<BusinessLocation[]>([]);
-  const [codexModel, setCodexModel] = useState("gpt-5.4");
+  const [codexModel, setCodexModel] = useState("gpt-5.6-sol");
   const [codexLogin, setCodexLogin] = useState<CodexLoginStatus | null>(null);
   const [codexRuntime, setCodexRuntime] = useState<CodexRuntimeStatus | null>(null);
   const [googleCallbackUrl, setGoogleCallbackUrl] = useState<string | null>(null);
@@ -993,7 +994,7 @@ export function SettingsClient() {
         {codexModel === "custom" ? (
           <div className="field">
             <label htmlFor="customModel">Custom model</label>
-            <input id="customModel" name="customModel" defaultValue={bootstrap?.codex.model ?? ""} placeholder="gpt-5.4" required />
+            <input id="customModel" name="customModel" defaultValue={bootstrap?.codex.model ?? ""} placeholder="gpt-5.6-sol" required />
           </div>
         ) : null}
         <div className="field">

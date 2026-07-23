@@ -86,7 +86,7 @@ export function defaultCodexSettings() {
   return {
     codexHome: process.env.CODEX_HOME ?? (railwayStateRoot ? join(railwayStateRoot, "codex-home") : home ? join(home, ".codex") : ".codex"),
     codexWorkdir: process.env.CODEX_WORKDIR ?? (railwayStateRoot ? join(railwayStateRoot, "codex-workdir") : join(projectRoot(), ".agent-session", "semantic-runtime")),
-    model: process.env.CODEX_MODEL ?? "gpt-5.4",
+    model: process.env.CODEX_MODEL ?? "gpt-5.6-sol",
     transcriptRetentionDays: Number(process.env.SEMANTIC_TRANSCRIPT_RETENTION_DAYS ?? 7)
   };
 }
