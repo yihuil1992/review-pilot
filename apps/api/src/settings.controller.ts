@@ -40,7 +40,7 @@ export class SettingsController {
   saveCodex(@Body() body: unknown) {
     const input = parseBody(CodexRuntimeSettingsSchema, body);
     return this.settings.saveCodex({
-      model: input.model ?? "gpt-5.4"
+      model: input.model ?? "gpt-5.6-sol"
     });
   }
 

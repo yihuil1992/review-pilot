@@ -41,6 +41,8 @@ export class CodexSubscriptionEngine implements SemanticEngine {
         "exec",
         "-c",
         "approval_policy=\"never\"",
+        // Preserve the previous GPT-5.4 default effort when moving the flagship default to Sol.
+        ...(settings.model === "gpt-5.6-sol" ? ["-c", "model_reasoning_effort=\"medium\""] : []),
         "--skip-git-repo-check",
         "--ephemeral",
         "--sandbox",

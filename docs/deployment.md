@@ -22,7 +22,7 @@ Run Codex login in the same macOS user account that starts the worker:
 
 ```bash
 codex login
-codex exec --skip-git-repo-check --ephemeral --sandbox read-only -m gpt-5.4 "Return JSON: {\"ok\":true}"
+codex exec --skip-git-repo-check --ephemeral --sandbox read-only -m gpt-5.6-sol "Return JSON: {\"ok\":true}"
 ```
 
 The Settings page can also start the official Codex device-code login flow. Use it when you want a browser-driven setup:

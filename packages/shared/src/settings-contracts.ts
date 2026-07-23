@@ -5,7 +5,7 @@ export const PublicUrlSettingsSchema = z.object({
 });
 
 export const CodexRuntimeSettingsSchema = z.object({
-  model: z.string().min(1).default("gpt-5.4")
+  model: z.string().min(1).default("gpt-5.6-sol")
 });
 
 export const PublishModeSettingsSchema = z.object({

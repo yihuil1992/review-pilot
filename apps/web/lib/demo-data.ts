@@ -217,7 +217,7 @@ export const demoBootstrap = {
   publicBaseUrlConfigured: true,
   codexConfigured: true,
   codex: {
-    model: "gpt-5.4",
+    model: "gpt-5.6-sol",
     configured: true
   },
   twilioConfigured: true,
