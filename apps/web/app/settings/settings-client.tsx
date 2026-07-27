@@ -6,6 +6,7 @@ import { Check, CheckCircle2, ChevronDown, CircleAlert, CircleDashed, Copy, Exte
 
 import { demoBootstrap, demoGoogleAccounts, demoLocations } from "@/lib/demo-data";
 import { demoMode } from "@/lib/demo-mode";
+import { WebhookManager } from "./webhook-manager";
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 const localGoogleCallbackUrl = `${apiBase.replace(/\/$/, "")}/google/oauth/callback`;
@@ -927,6 +928,8 @@ export function SettingsClient() {
             </div>
           )) : <div className="empty-row">No external API clients have been created.</div>}
         </div>
+
+        <WebhookManager clients={apiClients} demoMode={demoMode} />
       </section>
 
       <form className="card half settings-section settings-runtime-card" onSubmit={saveCodex}>

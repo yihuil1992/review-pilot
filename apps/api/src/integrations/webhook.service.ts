@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
 import { webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
 import { Queue } from "bullmq";
@@ -30,6 +30,44 @@ export class WebhookService implements OnModuleDestroy {
       deliveryCount: endpoint._count.deliveries,
       createdAt: endpoint.createdAt.toISOString(),
       updatedAt: endpoint.updatedAt.toISOString()
+    }));
+  }
+
+  async listDeliveries(endpointId: string) {
+    const endpoint = await this.prisma.webhookEndpoint.findUnique({
+      where: { id: endpointId },
+      select: { id: true }
+    });
+    if (!endpoint) throw new NotFoundException("Webhook endpoint not found");
+
+    const deliveries = await this.prisma.webhookDelivery.findMany({
+      where: { endpointId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        eventId: true,
+        eventType: true,
+        status: true,
+        attempts: true,
+        nextAttemptAt: true,
+        lastError: true,
+        deliveredAt: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    return deliveries.map((delivery) => ({
+      id: delivery.id,
+      eventId: delivery.eventId,
+      eventType: delivery.eventType,
+      status: delivery.status,
+      attempts: delivery.attempts,
+      nextAttemptAt: delivery.nextAttemptAt?.toISOString() ?? null,
+      lastError: delivery.lastError,
+      deliveredAt: delivery.deliveredAt?.toISOString() ?? null,
+      createdAt: delivery.createdAt.toISOString(),
+      updatedAt: delivery.updatedAt.toISOString()
     }));
   }
 
