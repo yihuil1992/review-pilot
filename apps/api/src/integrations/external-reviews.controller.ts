@@ -22,7 +22,6 @@ import { apiData, apiList } from "./api-response.js";
 import { RequireApiScopes } from "./api-scope.decorator.js";
 import { ApiScopeGuard } from "./api-scope.guard.js";
 import { ExternalDataService } from "./external-data.service.js";
-import { WebhookService } from "./webhook.service.js";
 
 @Controller("v1/reviews")
 @UseGuards(ApiKeyGuard, ApiScopeGuard)
@@ -34,8 +33,7 @@ export class ExternalReviewsController {
     @Inject(SettingsService) private readonly settings: SettingsService,
     @Inject(ExternalDataService) private readonly data: ExternalDataService,
     @Inject(ApiIdempotencyService) private readonly idempotency: ApiIdempotencyService,
-    @Inject(ApiRateLimitService) private readonly limits: ApiRateLimitService,
-    @Inject(WebhookService) private readonly webhooks: WebhookService
+    @Inject(ApiRateLimitService) private readonly limits: ApiRateLimitService
   ) {}
 
   @Get()
@@ -70,7 +68,6 @@ export class ExternalReviewsController {
       handler: async () => {
         await this.reviews.editLatestDraft(reviewId, input.body, input.expectedVersion);
         const review = await this.data.getReview(principal, reviewId);
-        await this.webhooks.emit({ eventType: "review.updated", resourceType: "review", resourceId: reviewId, resourceVersion: review.updatedAt, data: { status: review.status, draftVersion: review.draft?.version ?? null } }, principal.clientId);
         return { data: review };
       }
     });
@@ -151,7 +148,6 @@ export class ExternalReviewsController {
       handler: async () => {
         await this.reviews.markManualHandled(reviewId, "external_api");
         const review = await this.data.getReview(principal, reviewId);
-        await this.webhooks.emit({ eventType: "review.updated", resourceType: "review", resourceId: reviewId, resourceVersion: review.updatedAt, data: { status: review.status } }, principal.clientId);
         return { data: review };
       }
     });
@@ -184,15 +180,8 @@ export class ExternalReviewsController {
       resourceId: reviewId,
       locationId: state.businessLocationId,
       handler: async () => {
-        try {
-          await this.reviews.publish(reviewId, input.body, "external_api");
-          const review = await this.data.getReview(principal, reviewId);
-          await this.webhooks.emit({ eventType: "publish.succeeded", resourceType: "review", resourceId: reviewId, resourceVersion: review.updatedAt, data: { mode: input.mode, status: review.status } }, principal.clientId);
-          return { data: review };
-        } catch (error) {
-          await this.webhooks.emit({ eventType: "publish.failed", resourceType: "review", resourceId: reviewId, resourceVersion: new Date().toISOString(), data: { mode: input.mode, error: error instanceof Error ? error.message : "Publish failed" } }, principal.clientId);
-          throw error;
-        }
+        await this.reviews.publish(reviewId, input.body, "external_api");
+        return { data: await this.data.getReview(principal, reviewId) };
       }
     });
     response.status(result.statusCode);

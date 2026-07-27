@@ -15,17 +15,21 @@ vi.mock("bullmq", () => ({
 describe("WebhookService delivery inspection", () => {
   const prisma = {
     webhookEndpoint: {
-      findUnique: vi.fn()
+      findUnique: vi.fn(),
+      findMany: vi.fn()
     },
     webhookDelivery: {
-      findMany: vi.fn()
-    }
+      findMany: vi.fn(),
+      create: vi.fn()
+    },
+    $transaction: vi.fn()
   };
 
   let service: WebhookService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    prisma.webhookEndpoint.findMany.mockResolvedValue([]);
     service = new WebhookService(prisma as never, {} as never);
   });
 
@@ -90,5 +94,92 @@ describe("WebhookService delivery inspection", () => {
 
     await expect(service.listDeliveries("missing")).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.webhookDelivery.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("WebhookService event routing", () => {
+  const prisma = {
+    webhookEndpoint: {
+      findMany: vi.fn()
+    },
+    webhookDelivery: {
+      create: vi.fn()
+    },
+    $transaction: vi.fn()
+  };
+
+  let service: WebhookService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prisma.webhookEndpoint.findMany.mockResolvedValue([]);
+    service = new WebhookService(prisma as never, {} as never);
+  });
+
+  it("routes resource events only to active clients authorized for the location", async () => {
+    await service.emitForLocation({
+      eventType: "draft.ready",
+      resourceType: "review",
+      resourceId: "review-1",
+      resourceVersion: "2026-07-27T12:00:00.000Z",
+      data: { draftVersion: 1 }
+    }, "location-1");
+
+    expect(prisma.webhookEndpoint.findMany).toHaveBeenCalledWith({
+      where: {
+        active: true,
+        events: { has: "draft.ready" },
+        apiClient: {
+          is: {
+            revokedAt: null,
+            scopes: { has: "reviews:read" },
+            OR: [
+              { allLocations: true },
+              { locationGrants: { some: { locationId: "location-1" } } }
+            ]
+          }
+        }
+      }
+    });
+  });
+
+  it("does not target a revoked client for caller-specific events", async () => {
+    await service.emit({
+      eventType: "sync.completed",
+      resourceType: "location",
+      resourceId: "location-1",
+      resourceVersion: "2026-07-27T12:00:00.000Z",
+      data: { created: 1 }
+    }, "client-1");
+
+    expect(prisma.webhookEndpoint.findMany).toHaveBeenCalledWith({
+      where: {
+        active: true,
+        events: { has: "sync.completed" },
+        apiClientId: "client-1",
+        apiClient: {
+          is: {
+            revokedAt: null,
+            scopes: { has: "sync:run" }
+          }
+        }
+      }
+    });
+  });
+
+  it("does not fail completed domain work when webhook infrastructure is unavailable", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    prisma.webhookEndpoint.findMany.mockRejectedValueOnce(new Error("database unavailable"));
+
+    await expect(service.emitForLocation({
+      eventType: "publish.succeeded",
+      resourceType: "review",
+      resourceId: "review-1",
+      resourceVersion: "2026-07-27T12:00:00.000Z",
+      data: { mode: "live" }
+    }, "location-1")).resolves.toEqual({ eventId: null, deliveries: 0 });
+
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
-import { webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
+import { requiredWebhookEventScope, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
 import { Queue } from "bullmq";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
@@ -11,17 +11,52 @@ export class WebhookEmitterService implements OnModuleDestroy {
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async emitForJob(input: { jobRunId?: string; queueJobId?: string }, event: WebhookEventInput) {
-    const operation = await this.prisma.apiOperation.findFirst({
-      where: input.jobRunId ? { jobRunId: input.jobRunId } : { queueJobId: input.queueJobId },
-      select: { apiClientId: true }
-    });
-    if (!operation) return;
-    await this.emit(operation.apiClientId, event);
+  async emit(apiClientId: string, event: WebhookEventInput) {
+    try {
+      const endpoints = await this.prisma.webhookEndpoint.findMany({
+        where: {
+          apiClientId,
+          active: true,
+          events: { has: event.eventType },
+          apiClient: {
+            is: {
+              revokedAt: null,
+              scopes: { has: requiredWebhookEventScope(event.eventType) }
+            }
+          }
+        }
+      });
+      await this.enqueueDeliveries(event, endpoints);
+    } catch (error) {
+      console.error(`Failed to enqueue ${event.eventType} webhook`, error);
+    }
   }
 
-  async emit(apiClientId: string, event: WebhookEventInput) {
-    const endpoints = await this.prisma.webhookEndpoint.findMany({ where: { apiClientId, active: true, events: { has: event.eventType } } });
+  async emitForLocation(locationId: string, event: WebhookEventInput) {
+    try {
+      const endpoints = await this.prisma.webhookEndpoint.findMany({
+        where: {
+          active: true,
+          events: { has: event.eventType },
+          apiClient: {
+            is: {
+              revokedAt: null,
+              scopes: { has: requiredWebhookEventScope(event.eventType) },
+              OR: [
+                { allLocations: true },
+                { locationGrants: { some: { locationId } } }
+              ]
+            }
+          }
+        }
+      });
+      await this.enqueueDeliveries(event, endpoints);
+    } catch (error) {
+      console.error(`Failed to enqueue ${event.eventType} webhook`, error);
+    }
+  }
+
+  private async enqueueDeliveries(event: WebhookEventInput, endpoints: Array<{ id: string }>) {
     if (!endpoints.length) return;
     const eventId = randomUUID();
     const payload = jsonValue({
@@ -43,15 +78,6 @@ export class WebhookEmitterService implements OnModuleDestroy {
       removeOnComplete: { age: 86_400, count: 1000 },
       removeOnFail: { age: 2_592_000, count: 5000 }
     })));
-  }
-
-  async emitAll(event: WebhookEventInput) {
-    const endpoints = await this.prisma.webhookEndpoint.findMany({
-      where: { active: true, events: { has: event.eventType } },
-      distinct: ["apiClientId"],
-      select: { apiClientId: true }
-    });
-    await Promise.all(endpoints.map((endpoint) => this.emit(endpoint.apiClientId, event)));
   }
 
   async onModuleDestroy() {

@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
-import { webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
+import { requiredWebhookEventScope, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
 import { Queue } from "bullmq";
 import { randomBytes, randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
@@ -107,10 +107,57 @@ export class WebhookService implements OnModuleDestroy {
     return { endpoint: safeEndpoint(endpoint), secret };
   }
 
-  async emit(input: WebhookEventInput, apiClientId?: string) {
-    const endpoints = await this.prisma.webhookEndpoint.findMany({
-      where: { active: true, events: { has: input.eventType }, ...(apiClientId ? { apiClientId } : {}) }
-    });
+  async emit(input: WebhookEventInput, apiClientId: string) {
+    try {
+      const endpoints = await this.prisma.webhookEndpoint.findMany({
+        where: {
+          active: true,
+          events: { has: input.eventType },
+          apiClientId,
+          apiClient: {
+            is: {
+              revokedAt: null,
+              scopes: { has: requiredWebhookEventScope(input.eventType) }
+            }
+          }
+        }
+      });
+      return await this.enqueueDeliveries(input, endpoints);
+    } catch (error) {
+      console.error(`Failed to enqueue ${input.eventType} webhook`, error);
+      return { eventId: null, deliveries: 0 };
+    }
+  }
+
+  async emitForLocation(input: WebhookEventInput, locationId: string) {
+    try {
+      const endpoints = await this.prisma.webhookEndpoint.findMany({
+        where: {
+          active: true,
+          events: { has: input.eventType },
+          apiClient: {
+            is: {
+              revokedAt: null,
+              scopes: { has: requiredWebhookEventScope(input.eventType) },
+              OR: [
+                { allLocations: true },
+                { locationGrants: { some: { locationId } } }
+              ]
+            }
+          }
+        }
+      });
+      return await this.enqueueDeliveries(input, endpoints);
+    } catch (error) {
+      console.error(`Failed to enqueue ${input.eventType} webhook`, error);
+      return { eventId: null, deliveries: 0 };
+    }
+  }
+
+  private async enqueueDeliveries(
+    input: WebhookEventInput,
+    endpoints: Array<{ id: string }>
+  ) {
     if (!endpoints.length) return { eventId: null, deliveries: 0 };
     const eventId = randomUUID();
     const occurredAt = new Date().toISOString();

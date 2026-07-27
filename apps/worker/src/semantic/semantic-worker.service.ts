@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Prisma, ReviewPriority, ReviewSeverity } from "@review-pilot/db";
 import {
+  notificationUpdatedWebhookData,
   semanticJobNames,
   semanticQueueName,
   type AnalyzeReviewOutput,
@@ -60,19 +61,33 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
         throw new Error(`Unsupported semantic job: ${job.name}`);
       }
 
-      const draft = await this.persistSemanticOutput(reviewId, output, instruction);
+      const persisted = await this.persistSemanticOutput(reviewId, output, instruction);
+      const { draft, locationId, notificationStatus, notifyAt, reviewUpdatedAt } = persisted;
       await this.prisma.jobRun.update({
         where: { id: jobRunId },
         data: { status: "succeeded", finishedAt: new Date() }
       });
       const result = { reviewId, draftId: draft.id, draftVersion: draft.version };
       await this.operations.succeedByJobRunId(jobRunId, result);
-      await this.webhooks.emitForJob({ jobRunId }, {
+      await this.webhooks.emitForLocation(locationId, {
         eventType: "draft.ready",
         resourceType: "review",
         resourceId: reviewId,
-        resourceVersion: draft.createdAt.toISOString(),
+        resourceVersion: reviewUpdatedAt.toISOString(),
         data: result
+      });
+      await this.webhooks.emitForLocation(locationId, {
+        eventType: "notification.updated",
+        resourceType: "review",
+        resourceId: reviewId,
+        resourceVersion: reviewUpdatedAt.toISOString(),
+        data: notificationUpdatedWebhookData({
+          notificationStatus,
+          notifyAt,
+          notificationSentAt: null,
+          notificationAttempts: 0,
+          notificationLastError: null
+        })
       });
       return result;
     } catch (error) {
@@ -178,12 +193,16 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
       select: {
+        businessLocationId: true,
         businessLocation: {
           select: { notificationPhoneNumber: true }
         }
       }
     });
-    const hasNotificationPhone = Boolean(review?.businessLocation.notificationPhoneNumber);
+    if (!review) {
+      throw new Error("Review not found");
+    }
+    const hasNotificationPhone = Boolean(review.businessLocation.notificationPhoneNumber);
     const draft = await this.prisma.replyDraft.create({
       data: {
         reviewId,
@@ -218,7 +237,7 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    await this.prisma.review.update({
+    const updatedReview = await this.prisma.review.update({
       where: { id: reviewId },
       data: {
         status: "draft_ready",
@@ -237,7 +256,13 @@ export class SemanticWorkerService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    return draft;
+    return {
+      draft,
+      locationId: review.businessLocationId,
+      notificationStatus: updatedReview.notificationStatus,
+      notifyAt: updatedReview.notifyAt,
+      reviewUpdatedAt: updatedReview.updatedAt
+    };
   }
 }
 

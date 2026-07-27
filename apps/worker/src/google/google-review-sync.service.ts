@@ -101,6 +101,13 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
 
       for (const location of locations) {
         const result = await this.syncLocation(location, syncWindow);
+        await this.webhooks.emitForLocation(location.id, {
+          eventType: "sync.completed",
+          resourceType: "location",
+          resourceId: location.id,
+          resourceVersion: new Date().toISOString(),
+          data: { source, locationId: location.id, ...result }
+        });
         reviewsSeen += result.reviewsSeen;
         created += result.created;
         updated += result.updated;
@@ -180,21 +187,45 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
               googleReviewId
             }
           },
-          select: { id: true }
+          select: {
+            id: true,
+            authorName: true,
+            rating: true,
+            reviewText: true,
+            reviewCreatedAt: true,
+            publishedReply: true,
+            replyPublishedAt: true
+          }
         });
 
         if (existing) {
+          const updateData = reviewUpdateData(review);
+          if (!reviewProviderFieldsChanged(existing, updateData)) {
+            continue;
+          }
           const savedReview = await this.prisma.review.update({
             where: { id: existing.id },
-            data: reviewUpdateData(review)
+            data: updateData
           });
-          await this.webhooks.emitAll({ eventType: "review.updated", resourceType: "review", resourceId: savedReview.id, resourceVersion: savedReview.updatedAt.toISOString(), data: { locationId: location.id, status: savedReview.status } });
+          await this.webhooks.emitForLocation(location.id, {
+            eventType: "review.updated",
+            resourceType: "review",
+            resourceId: savedReview.id,
+            resourceVersion: savedReview.updatedAt.toISOString(),
+            data: { locationId: location.id, status: savedReview.status }
+          });
           updated += 1;
         } else {
           const createdReview = await this.prisma.review.create({
             data: reviewCreateData(location.id, googleReviewId, review)
           });
-          await this.webhooks.emitAll({ eventType: "review.created", resourceType: "review", resourceId: createdReview.id, resourceVersion: createdReview.updatedAt.toISOString(), data: { locationId: location.id, status: createdReview.status, rating: createdReview.rating } });
+          await this.webhooks.emitForLocation(location.id, {
+            eventType: "review.created",
+            resourceType: "review",
+            resourceId: createdReview.id,
+            resourceVersion: createdReview.updatedAt.toISOString(),
+            data: { locationId: location.id, status: createdReview.status, rating: createdReview.rating }
+          });
           await this.enqueueAutomaticDraft(createdReview.id);
           created += 1;
         }
@@ -348,6 +379,22 @@ function reviewUpdateData(review: GoogleReview) {
     publishedReply: review.reviewReply?.comment ?? null,
     replyPublishedAt: review.reviewReply?.updateTime ? new Date(review.reviewReply.updateTime) : null
   };
+}
+
+export function reviewProviderFieldsChanged(
+  existing: ReturnType<typeof reviewUpdateData>,
+  incoming: ReturnType<typeof reviewUpdateData>
+) {
+  return existing.authorName !== incoming.authorName
+    || existing.rating !== incoming.rating
+    || existing.reviewText !== incoming.reviewText
+    || dateValue(existing.reviewCreatedAt) !== dateValue(incoming.reviewCreatedAt)
+    || existing.publishedReply !== incoming.publishedReply
+    || dateValue(existing.replyPublishedAt) !== dateValue(incoming.replyPublishedAt);
+}
+
+function dateValue(value: Date | null) {
+  return value?.getTime() ?? null;
 }
 
 function reviewCreateData(businessLocationId: string, googleReviewId: string, review: GoogleReview) {

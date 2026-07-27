@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { notificationEligibilityReason } from "@review-pilot/shared";
+import { notificationEligibilityReason, notificationUpdatedWebhookData } from "@review-pilot/shared";
 import { PrismaService } from "../prisma.service.js";
+import { WebhookService } from "../integrations/webhook.service.js";
 import { NotificationQueueService } from "./notification-queue.service.js";
 
 type NotificationCounts = {
@@ -19,7 +20,8 @@ const missingPhoneReason = "Add a notification phone number for this location, t
 export class NotificationsService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
-    @Inject(NotificationQueueService) private readonly queue: NotificationQueueService
+    @Inject(NotificationQueueService) private readonly queue: NotificationQueueService,
+    @Inject(WebhookService) private readonly webhooks: WebhookService
   ) {}
 
   async listTasks(query: { status?: string } = {}) {
@@ -120,7 +122,9 @@ export class NotificationsService {
         notificationLastError: null
       }
     });
-    return this.queue.enqueueSend({ reviewId, source: "send_now" });
+    const result = await this.queue.enqueueSend({ reviewId, source: "send_now" });
+    await this.emitUpdated(reviewId);
+    return result;
   }
 
   async cancel(reviewId: string) {
@@ -134,6 +138,7 @@ export class NotificationsService {
       },
       include: { businessLocation: true, analysis: true }
     });
+    await this.emitUpdated(reviewId);
     return {
       ok: true,
       reviewId: review.id,
@@ -157,6 +162,7 @@ export class NotificationsService {
       }
     });
     const job = await this.queue.enqueueSend({ reviewId, source: "rerun" });
+    await this.emitUpdated(reviewId);
     return {
       ...job,
       reviewId: review.id,
@@ -202,6 +208,7 @@ export class NotificationsService {
         }
       }
     });
+    await this.emitUpdated(reviewId);
     return {
       ok: true,
       skipped: true,
@@ -210,5 +217,28 @@ export class NotificationsService {
       notifyAt: null,
       message: missingPhoneReason
     };
+  }
+
+  private async emitUpdated(reviewId: string) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: {
+        businessLocationId: true,
+        notificationStatus: true,
+        notifyAt: true,
+        notificationSentAt: true,
+        notificationAttempts: true,
+        notificationLastError: true,
+        updatedAt: true
+      }
+    });
+    if (!review) return;
+    await this.webhooks.emitForLocation({
+      eventType: "notification.updated",
+      resourceType: "review",
+      resourceId: reviewId,
+      resourceVersion: review.updatedAt.toISOString(),
+      data: notificationUpdatedWebhookData(review)
+    }, review.businessLocationId);
   }
 }
