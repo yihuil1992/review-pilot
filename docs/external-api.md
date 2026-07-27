@@ -121,6 +121,23 @@ Owner-session endpoints under `/api/integrations/webhooks` create and manage web
 
 Deliveries are at least once. Deduplicate by `eventId`. Review Pilot retries with exponential backoff and retains delivery status for 30 days.
 
+Resource events are delivered only to active, non-revoked API Clients authorized
+for the resource's business location. Clients with `allLocations=true` receive
+events for current and future locations; otherwise an explicit location grant is
+required. Event delivery also respects API Client scopes: Review, Draft, and Publish
+events require `reviews:read`; notification events require `notifications:read`;
+and sync completion requires `sync:run`.
+
+| Event | Trigger |
+| --- | --- |
+| `review.created` | Google sync persists a newly discovered review. |
+| `review.updated` | Persisted Google review fields actually change, or an owner/external workflow explicitly edits the draft or marks the review handled. Periodic sightings with no changed fields do not emit this event. |
+| `draft.ready` | Automatic, owner, signed-link, or external API draft generation finishes and the draft is persisted. AI queue time is not the notification severity delay. |
+| `publish.succeeded` | An owner, signed-link, or external API publish attempt succeeds. |
+| `publish.failed` | A valid owner, signed-link, or external API publish attempt fails after processing begins. |
+| `notification.updated` | Notification scheduling or state changes, including send, skip, retry failure, terminal failure, cancellation, and rerun. The payload is a minimal status projection and does not include signed owner links or Twilio provider details. |
+| `sync.completed` | A scheduled location sync succeeds, or an external API location-sync operation succeeds for its initiating client. |
+
 ```text
 X-Review-Pilot-Delivery: <delivery-id>
 X-Review-Pilot-Timestamp: <unix-seconds>

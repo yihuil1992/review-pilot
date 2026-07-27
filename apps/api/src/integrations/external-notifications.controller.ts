@@ -13,7 +13,6 @@ import { apiData, apiList } from "./api-response.js";
 import { RequireApiScopes } from "./api-scope.decorator.js";
 import { ApiScopeGuard } from "./api-scope.guard.js";
 import { ExternalDataService } from "./external-data.service.js";
-import { WebhookService } from "./webhook.service.js";
 
 @Controller("v1")
 @UseGuards(ApiKeyGuard, ApiScopeGuard)
@@ -23,8 +22,7 @@ export class ExternalNotificationsController {
   constructor(
     @Inject(NotificationsService) private readonly notifications: NotificationsService,
     @Inject(ExternalDataService) private readonly data: ExternalDataService,
-    @Inject(ApiIdempotencyService) private readonly idempotency: ApiIdempotencyService,
-    @Inject(WebhookService) private readonly webhooks: WebhookService
+    @Inject(ApiIdempotencyService) private readonly idempotency: ApiIdempotencyService
   ) {}
 
   @Get("notification-tasks")
@@ -101,8 +99,6 @@ export class ExternalNotificationsController {
       handler: async () => {
         const handled = await handler();
         const queueJobId = typeof handled.jobId === "string" ? handled.jobId : undefined;
-        const review = await this.data.getReview(apiPrincipal, reviewId);
-        await this.webhooks.emit({ eventType: "notification.updated", resourceType: "review", resourceId: reviewId, resourceVersion: review.updatedAt, data: { notificationStatus: (handled as { notificationStatus?: string }).notificationStatus ?? "pending" } }, apiPrincipal.clientId);
         return { data: handled, asynchronous: asynchronous && Boolean(queueJobId), queueJobId };
       }
     });

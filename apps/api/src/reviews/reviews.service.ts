@@ -7,6 +7,7 @@ import { GoogleService } from "../google/google.service.js";
 import { NotificationsService } from "../notifications/notifications.service.js";
 import { SettingsService } from "../settings/settings.service.js";
 import { TwilioService } from "../twilio/twilio.service.js";
+import { WebhookService } from "../integrations/webhook.service.js";
 
 const unhandledStatuses: ReviewStatus[] = [
   "new",
@@ -30,7 +31,8 @@ export class ReviewsService {
     @Inject(GoogleService) private readonly google: GoogleService,
     @Inject(NotificationsService) private readonly notifications: NotificationsService,
     @Inject(SettingsService) private readonly settings: SettingsService,
-    @Inject(TwilioService) private readonly twilio: TwilioService
+    @Inject(TwilioService) private readonly twilio: TwilioService,
+    @Inject(WebhookService) private readonly webhooks: WebhookService
   ) {}
 
   async list(query: { status?: "unhandled" | "all"; locationId?: string; severity?: string; rating?: number }) {
@@ -144,30 +146,59 @@ export class ReviewsService {
       await this.assertPublishAllowed(review.businessLocationId);
     }
 
-    await this.prisma.review.update({ where: { id: reviewId }, data: { status: "publishing" } });
-    if (!publishTestMode) {
-      await this.google.publishReply(reviewId, finalBody);
-    }
-    await this.prisma.review.update({
-      where: { id: reviewId },
-      data: {
-        status: "published",
-        publishedReply: finalBody,
-        replyPublishedAt: publishTestMode ? null : new Date(),
-        actions: {
-          create: {
-            type: "published",
-            metadata: {
-              source,
-              testMode: publishTestMode,
-              userEditedDraft: Boolean(draft?.userEdited),
-              manualRisk
+    const mode = publishTestMode ? "test" : "live";
+    let publishedReview: { updatedAt: Date };
+    try {
+      await this.prisma.review.update({ where: { id: reviewId }, data: { status: "publishing" } });
+      if (!publishTestMode) {
+        await this.google.publishReply(reviewId, finalBody);
+      }
+      publishedReview = await this.prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          status: "published",
+          publishedReply: finalBody,
+          replyPublishedAt: publishTestMode ? null : new Date(),
+          actions: {
+            create: {
+              type: "published",
+              metadata: {
+                source,
+                testMode: publishTestMode,
+                userEditedDraft: Boolean(draft?.userEdited),
+                manualRisk
+              }
             }
           }
         }
+      });
+    } catch (error) {
+      try {
+        await this.webhooks.emitForLocation({
+          eventType: "publish.failed",
+          resourceType: "review",
+          resourceId: reviewId,
+          resourceVersion: new Date().toISOString(),
+          data: {
+            mode,
+            error: error instanceof Error ? error.message.slice(0, 500) : "Publish failed"
+          }
+        }, review.businessLocationId);
+      } catch (webhookError) {
+        console.error("Failed to enqueue publish.failed webhook", webhookError);
       }
-    });
-    return { ...(await this.get(reviewId)), publishTestMode, manualRisk };
+      throw error;
+    }
+
+    const result = { ...(await this.get(reviewId)), publishTestMode, manualRisk };
+    await this.webhooks.emitForLocation({
+      eventType: "publish.succeeded",
+      resourceType: "review",
+      resourceId: reviewId,
+      resourceVersion: publishedReview.updatedAt.toISOString(),
+      data: { mode, status: result.status }
+    }, review.businessLocationId);
+    return result;
   }
 
   async sendDueNotifications() {
@@ -180,18 +211,30 @@ export class ReviewsService {
       throw new Error("Review not found");
     }
     this.assertReviewActionable(review.status);
-    await this.prisma.review.update({
+    const updated = await this.prisma.review.update({
       where: { id: reviewId },
       data: {
         status: "manual_handled",
         actions: { create: { type: "manual_handled", metadata: { source } } }
       }
     });
-    return this.get(reviewId);
+    const result = await this.get(reviewId);
+    await this.webhooks.emitForLocation({
+      eventType: "review.updated",
+      resourceType: "review",
+      resourceId: reviewId,
+      resourceVersion: updated.updatedAt.toISOString(),
+      data: { status: result.status }
+    }, review.businessLocationId);
+    return result;
   }
 
   async editLatestDraft(reviewId: string, body: string, expectedVersion: number) {
-    const draft = await this.prisma.replyDraft.findFirst({ where: { reviewId }, orderBy: { version: "desc" } });
+    const draft = await this.prisma.replyDraft.findFirst({
+      where: { reviewId },
+      orderBy: { version: "desc" },
+      include: { review: { select: { businessLocationId: true } } }
+    });
     if (!draft) {
       throw new NotFoundException("Review draft not found");
     }
@@ -199,7 +242,15 @@ export class ReviewsService {
       throw new ConflictException("Draft changed after the supplied expectedVersion value");
     }
     await this.saveLatestDraftEdit(reviewId, body);
-    return this.get(reviewId);
+    const result = await this.get(reviewId);
+    await this.webhooks.emitForLocation({
+      eventType: "review.updated",
+      resourceType: "review",
+      resourceId: reviewId,
+      resourceVersion: new Date().toISOString(),
+      data: { status: result.status, draftVersion: result.draft?.version ?? null }
+    }, draft.review.businessLocationId);
+    return result;
   }
 
   private async loadReviewForSemantic(reviewId: string) {

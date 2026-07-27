@@ -4,6 +4,7 @@ import {
   canSendReviewNotification,
   notificationJobNames,
   notificationQueueName,
+  notificationUpdatedWebhookData,
   notifiableReviewStatuses,
   type NotificationScanJobData,
   type NotificationSendJobData
@@ -75,23 +76,45 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
       } else if (job.name === notificationJobNames.send) {
         const data = job.data as NotificationSendJobData;
         result = await this.sendOne(job, data);
-        const event = {
-          eventType: "notification.updated",
-          resourceType: "review",
-          resourceId: data.reviewId,
-          resourceVersion: new Date().toISOString(),
-          data: result
-        } as const;
-        if (data.apiClientId) await this.webhooks.emit(data.apiClientId, event);
-        else await this.webhooks.emitForJob({ queueJobId }, event);
+        await this.emitNotificationUpdated(data.reviewId);
       } else {
         throw new Error(`Unsupported notification job: ${job.name}`);
       }
       await this.operations.succeedByQueueJobId(queueJobId, result);
       return result;
     } catch (error) {
+      if (job.name === notificationJobNames.send) {
+        await this.emitNotificationUpdated((job.data as NotificationSendJobData).reviewId);
+      }
       await this.operations.failByQueueJobId(queueJobId, error);
       throw error;
+    }
+  }
+
+  private async emitNotificationUpdated(reviewId: string) {
+    try {
+      const review = await this.prisma.review.findUnique({
+        where: { id: reviewId },
+        select: {
+          businessLocationId: true,
+          notificationStatus: true,
+          notifyAt: true,
+          notificationSentAt: true,
+          notificationAttempts: true,
+          notificationLastError: true,
+          updatedAt: true
+        }
+      });
+      if (!review) return;
+      await this.webhooks.emitForLocation(review.businessLocationId, {
+        eventType: "notification.updated",
+        resourceType: "review",
+        resourceId: reviewId,
+        resourceVersion: review.updatedAt.toISOString(),
+        data: notificationUpdatedWebhookData(review)
+      });
+    } catch (error) {
+      console.error("Failed to enqueue notification.updated webhook", error);
     }
   }
 
