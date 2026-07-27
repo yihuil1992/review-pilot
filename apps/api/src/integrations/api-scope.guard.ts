@@ -18,7 +18,7 @@ const costlyScopes = new Set<ApiScope>([
 @Injectable()
 export class ApiScopeGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
+    @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(ApiRateLimitService) private readonly limits: ApiRateLimitService
   ) {}
 

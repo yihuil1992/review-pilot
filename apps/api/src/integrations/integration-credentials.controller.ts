@@ -65,6 +65,11 @@ export class IntegrationCredentialsController {
     return this.webhooks.listEndpoints();
   }
 
+  @Get("webhooks/:webhookId/deliveries")
+  listWebhookDeliveries(@Param("webhookId") webhookId: string) {
+    return this.webhooks.listDeliveries(webhookId);
+  }
+
   @Post("webhooks")
   async createWebhook(@Body() body: unknown) {
     const input = parseBody(WebhookEndpointCreateBodySchema, body);
