@@ -20,7 +20,7 @@ const unhandledStatuses: ReviewStatus[] = [
 ];
 
 const publishLimitPerDay = 10;
-const publishIntervalMs = 15 * 60 * 1000;
+const publishIntervalMs = 5 * 60 * 1000;
 const completedStatuses: ReviewStatus[] = ["published", "manual_handled"];
 
 @Injectable()
