@@ -52,8 +52,9 @@ Railway remains production. Do not use the development docker-compose.yml.
    `colima-coolify` context, retaining the preceding image for rollback. In
    Coolify use the custom build command below to require an imported image
    whose source revision matches the checked-out trial commit. Enable Coolify's
-   **Include source commit in build** setting so the helper receives the actual
-   `SOURCE_COMMIT` (Coolify removes `.git` before running the build command):
+   **Include source commit in build** setting so `/artifacts/build-time.env` contains the actual
+   `SOURCE_COMMIT`. The script reads only that field without sourcing the
+   credentials file; Coolify removes `.git` before running the build command:
 
    ```sh
    sh scripts/verify-trial-image.sh

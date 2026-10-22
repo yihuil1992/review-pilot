@@ -1,7 +1,11 @@
 #!/bin/sh
-# Coolify removes .git before this step; its helper must receive SOURCE_COMMIT.
+# Coolify removes .git and writes its build metadata to this dotenv file.
 set -eu
-revision=${SOURCE_COMMIT:?Enable Include source commit in build in Coolify}
+revision=${SOURCE_COMMIT:-}
+if [ -r /artifacts/build-time.env ]; then
+  # Read only the revision; never source/evaluate a file containing credentials.
+  revision=$(sed -n 's/^SOURCE_COMMIT=//p' /artifacts/build-time.env | tr -d "\"'")
+fi
 case "$revision" in
   *[!0-9a-f]*|'') echo 'Invalid source commit; refusing imported image.' >&2; exit 1 ;;
 esac
