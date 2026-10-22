@@ -6,9 +6,26 @@ const nextConfig = (phase) => {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (githubPages ? "/review-pilot" : "");
   const staticExport = demoMode || githubPages;
   const apiProxyUrl = process.env.API_PROXY_URL?.replace(/\/$/, "");
+  const trialMode = process.env.REVIEW_PILOT_TRIAL_MODE === "true";
 
   return {
     ...(process.env.NEXT_BUILD_CPUS ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } } : {}),
+    ...(trialMode ? {
+      async redirects() {
+        return [{
+          source: "/:path*",
+          has: [{ type: "header", key: "cf-visitor", value: '.*"scheme"\\s*:\\s*"http".*' }],
+          destination: "https://reviews.shakingcrab.net/:path*",
+          permanent: true
+        }];
+      },
+      async headers() {
+        return [{ source: "/:path*", headers: [
+          { key: "Strict-Transport-Security", value: "max-age=86400" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" }
+        ] }];
+      }
+    } : {}),
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
     ...(apiProxyUrl
       ? {

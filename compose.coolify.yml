@@ -4,6 +4,7 @@ x-runtime: &runtime
     context: .
     args:
       API_PROXY_URL: http://api:4000
+      REVIEW_PILOT_TRIAL_MODE: "true"
   init: true
   restart: unless-stopped
   stop_grace_period: 90s
@@ -104,6 +105,7 @@ services:
     environment:
       NODE_ENV: production
       API_PROXY_URL: http://api:4000
+      REVIEW_PILOT_TRIAL_MODE: "true"
       NODE_OPTIONS: --max-old-space-size=256
     working_dir: /app/apps/web
     command: [node, node_modules/next/dist/bin/next, start, -H, 0.0.0.0, -p, "3000"]

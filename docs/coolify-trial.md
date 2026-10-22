@@ -24,11 +24,22 @@ Railway remains production. Do not use the development docker-compose.yml.
    and a worker queue operation before publishing a domain. The worker state
    volume persists Codex authentication; a new volume requires login or a
    deliberate secure transfer of the existing Codex home.
-5. Assign the web service's domain in Coolify, port 3000. When Cloudflare Tunnel
-   terminates public TLS, an HTTP origin domain with HTTPS forcing disabled
-   allows the tunnel to reach Coolify's HTTP router without redirect loops.
-   Point only the new hostname's tunnel route at the Coolify proxy; keep the
-   existing GitHub webhook route intact and management callbacks on tailnet.
+5. Assign `https://reviews.shakingcrab.net:3000` to web in Coolify. Coolify's
+   proxy manages routing and the Let's Encrypt origin certificate. Initially
+   route the hostname's HTTP-01 challenge path through the tunnel to port 80.
+   Once the certificate is issued, use `https://coolify-proxy:443` for the
+   general route with origin server name `reviews.shakingcrab.net` and TLS
+   verification enabled. Preserve the HTTP challenge route for renewal.
+   Keep the existing GitHub webhook route intact and management callbacks on
+   tailnet. The trial web build redirects Cloudflare's original HTTP scheme
+   to HTTPS and adds HSTS/noindex headers, since the origin connection itself
+   is HTTPS for both kinds of public request.
+6. For native GitHub push deployments, use the custom build command
+   `COMPOSE_PARALLEL_LIMIT=1 docker compose build` and start command
+   `docker compose up -d --no-build`. This serializes builds on the shared VM.
+   Enable automatic deployment only on the trial branch. The first bootstrap
+   may import a locally verified ARM64 image and start only postgres/redis
+   while restoring data; remove that bootstrap-only build override afterward.
 
 ## Isolation and limitations
 
