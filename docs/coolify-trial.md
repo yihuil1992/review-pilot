@@ -34,40 +34,32 @@ Railway remains production. Do not use the development docker-compose.yml.
    tailnet. The trial web build redirects Cloudflare's original HTTP scheme
    to HTTPS and adds HSTS/noindex headers, since the origin connection itself
    is HTTPS for both kinds of public request.
-6. Keep automatic deployment disabled on this shared 4 GiB VM until a bounded
-   build path is capacity-validated. A native build hit global OOM during
-   dependency installation, also killing a Coolify job worker. Compose build
-   serialization alone does not cap BuildKit or installation memory. Build the
-   clean trial commit on a separate Linux ARM64 Docker host instead:
+6. Enable automatic deployment for `codex/coolify-trial` and **Include source
+   commit in build**. Use native Coolify custom build command
+   `sh scripts/build-coolify.sh` and start command
+   `docker compose up -d --no-build`. GitHub push retrieves source, builds and
+   deploys entirely on the Coolify host; no workstation image import is needed.
 
-   ```sh
-   revision=$(git rev-parse HEAD)
-   test -z "$(git status --porcelain)"
-   docker build --platform linux/arm64 --build-arg SOURCE_REVISION="$revision" \
-     --build-arg REVIEW_PILOT_TRIAL_MODE=true --build-arg API_PROXY_URL=http://api:4000 \
-     -t "review-pilot:$revision" -t review-pilot:coolify-trial .
-   ```
+   The shared Colima `coolify` VM has 8 GiB RAM and 4 CPUs. The script creates
+   a dedicated `review-pilot-coolify` BuildKit builder on that same Docker host,
+   pins BuildKit 0.34.1, caps its total memory at 2 GiB with no extra swap and
+   CPU quota at two cores, and verifies those limits before every build.
+   `deploy/buildkitd.toml` limits build parallelism to one and applies cache GC
+   targets. GC targets are not a hard disk quota; the script requires at least
+   4 GiB free before building. Monitor free space as images accumulate.
 
-   Import the image through `docker save` / `docker load` into the remote
-   `colima-coolify` context, retaining the preceding image for rollback. In
-   Coolify use the custom build command below to require an imported image
-   whose source revision matches the checked-out trial commit. Enable Coolify's
-   **Include source commit in build** setting so `/artifacts/build-time.env` contains the actual
-   `SOURCE_COMMIT`. The script reads only that field without sourcing the
-   credentials file; Coolify removes `.git` before running the build command:
+   All application services share one image, so the script builds it once,
+   loads it into the local Docker engine and verifies the source revision and
+   ARM64 platform before Compose starts it. It reads only non-secret metadata
+   from `/artifacts/build-time.env`, without sourcing the file. If overriding
+   `REVIEW_PILOT_IMAGE_TAG`, expose that non-secret value at both build and run
+   time. Keep all credentials out of build arguments.
 
-   ```sh
-   sh scripts/verify-trial-image.sh
-   ```
-
-   Then deploy through Coolify with start command `docker compose up -d --no-build`.
-   Coolify still owns source retrieval, Compose, environment, domains and
-   persistent volumes. A missing or mismatched image must fail before startup;
-   importing an image alone does not deploy it. The Dockerfile bounds Node heap
-   before dependency installation, pins pnpm tarball workers to one and reduces
-   lifecycle/network concurrency, but those
-   settings do not prove shared-VM build capacity. Re-enable automatic builds
-   only after a separately verified build-server or resource-isolated path.
+   Node heap and pnpm extraction/lifecycle/network concurrency are also bounded
+   in Dockerfile. Application runtime caps alone do not limit build processes.
+   The previous off-host workflow was an incident workaround and is superseded
+   by this native bounded build path. Keep the preceding working image for code
+   rollback; do not recreate volumes or switch production as part of rollback.
 
 ## Isolation and limitations
 
@@ -91,7 +83,7 @@ Railway remains production. Do not use the development docker-compose.yml.
   independent. Worker operation verification must enqueue and await a job;
   process/container state alone is insufficient.
 - Runtime memory caps support a bounded trial, not a production capacity SLA.
-  Docker builds are currently offloaded from the shared 4 GiB VM. The
+  Docker builds run in a separate capped builder on the shared 8 GiB VM. The
   optional NEXT_BUILD_CPUS setting limits Next.js build parallelism.
 - An initialized volume is owned by the node user (uid 1000). Preserve ownership
   when importing state. The database uses PG18's `/var/lib/postgresql` mount.
