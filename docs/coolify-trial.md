@@ -52,6 +52,13 @@ Railway remains production. Do not use the development docker-compose.yml.
 - Codex calls are not blocked by trial mode. Test only with intentional trial
   inputs, and confirm authentication independently. Installed CLI is not proof
   that generation works.
+- Codex CLI is pinned in the root package and lockfile (0.163.0 for this trial).
+  Upgrade that dependency and rebuild the image to persist future updates.
+  The model picker queries the worker's authenticated CLI through local
+  app-server `model/list`, so choices follow its account/client availability.
+  Refresh models reloads the catalog without changing the selected model;
+  failed discovery preserves existing choices and Custom. No model is silently
+  selected on an upgrade. The discovery process has a 15-second timeout.
 - API readiness checks PostgreSQL and Redis within 1.5 seconds; liveness stays
   independent. Worker operation verification must enqueue and await a job;
   process/container state alone is insufficient.

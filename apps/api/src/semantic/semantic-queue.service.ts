@@ -35,6 +35,10 @@ export class SemanticQueueService implements OnModuleDestroy {
     return this.enqueueRuntimeCommand(codexRuntimeJobNames.test);
   }
 
+  async listModels() {
+    return this.enqueueRuntimeCommand(codexRuntimeJobNames.listModels);
+  }
+
   async startDeviceLogin() {
     return this.enqueueRuntimeCommand(codexRuntimeJobNames.startLogin);
   }

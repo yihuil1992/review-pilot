@@ -8,6 +8,17 @@ export const CodexRuntimeSettingsSchema = z.object({
   model: z.string().min(1).default("gpt-5.6-sol")
 });
 
+export const CodexModelOptionSchema = z.object({
+  id: z.string().min(1),
+  displayName: z.string().min(1)
+});
+
+export const CodexModelCatalogSchema = z.object({
+  models: z.array(CodexModelOptionSchema)
+});
+
+export type CodexModelOption = z.infer<typeof CodexModelOptionSchema>;
+
 export const PublishModeSettingsSchema = z.object({
   publishTestMode: z.boolean()
 });
