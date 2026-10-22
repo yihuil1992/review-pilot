@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 WORKDIR /app
 COPY . .
 ENV NODE_OPTIONS=--max-old-space-size=768 NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD_CPUS=1
-RUN pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=4
+RUN PNPM_MAX_WORKERS=1 NODE_OPTIONS=--max-old-space-size=512 \
+    pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=4
 ARG API_PROXY_URL=http://api:4000
 ARG REVIEW_PILOT_TRIAL_MODE=false
 ENV API_PROXY_URL=${API_PROXY_URL} NEXT_PUBLIC_API_BASE_URL=/api REVIEW_PILOT_TRIAL_MODE=${REVIEW_PILOT_TRIAL_MODE}

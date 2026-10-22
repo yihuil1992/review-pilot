@@ -51,17 +51,20 @@ Railway remains production. Do not use the development docker-compose.yml.
    Import the image through `docker save` / `docker load` into the remote
    `colima-coolify` context, retaining the preceding image for rollback. In
    Coolify use the custom build command below to require an imported image
-   whose source revision matches the checked-out trial commit:
+   whose source revision matches the checked-out trial commit. Enable Coolify's
+   **Include source commit in build** setting so the helper receives the actual
+   `SOURCE_COMMIT` (Coolify removes `.git` before running the build command):
 
    ```sh
-   test "$(docker image inspect review-pilot:coolify-trial --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$(git rev-parse HEAD)"
+   sh scripts/verify-trial-image.sh
    ```
 
    Then deploy through Coolify with start command `docker compose up -d --no-build`.
    Coolify still owns source retrieval, Compose, environment, domains and
    persistent volumes. A missing or mismatched image must fail before startup;
    importing an image alone does not deploy it. The Dockerfile bounds Node heap
-   before dependency installation and reduces pnpm concurrency, but those
+   before dependency installation, pins pnpm tarball workers to one and reduces
+   lifecycle/network concurrency, but those
    settings do not prove shared-VM build capacity. Re-enable automatic builds
    only after a separately verified build-server or resource-isolated path.
 
