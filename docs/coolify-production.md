@@ -7,6 +7,9 @@ application service names and volume keys. On the existing Coolify application,
 verify its rendered volume names before changing the Compose path so data/state
 are retained. Do not merge main while Railway deployments still follow it.
 
+The selected production hostname is exclusively `https://reviews.shakingcrab.net`.
+No old `.com` alias, proxy or redirect is included in the cutover plan.
+
 ## Configuration
 
 - Keep the private GitHub App, `.net` domain, HTTPS tunnel route and HTTP-01
@@ -35,7 +38,8 @@ are retained. Do not merge main while Railway deployments still follow it.
 ## Integration handoff
 
 - Google callback: `https://reviews.shakingcrab.net/api/google/oauth/callback`.
-  Preserve the old `.com` and Railway callback registrations while retaining them.
+  Existing `.com` and Railway callback registrations remain for the retained source
+  environment; the target uses only the `.net` callback. Cleanup is separate.
   A stale source Google grant must not overwrite a refreshed target grant during
   final restore; preserve the relevant GoogleAccount/SecretValue rows securely and
   merge by googleUserId/scope/key. Do not assume the restored token remains usable.
@@ -51,15 +55,10 @@ are retained. Do not merge main while Railway deployments still follow it.
   link migration also requires the original session-signing secret. Recheck the
   restored token: if source credentials are stale and the target has a verified
   token for the same account/sender, preserve that token during the final import.
-  No SMS is sent by credential verification. Signed review
-  links derive their destination from database publicBaseUrl. Old `.com` links
-  need an agreed ingress redirect/proxy plan; changing the new publicBaseUrl alone
-  does not move existing links or API consumers.
-  Prefer an old-domain alias/proxy that preserves API Authorization headers;
-  cross-origin redirects can strip credentials. Do not change old-domain routing
-  until the approved cutover.
-  Production WEB_ORIGIN allows both owned domains so browser actions through the
-  legacy alias pass the API's origin check; the trial still allows only `.net`.
+  No SMS is sent by credential verification. Newly generated review links derive
+  their destination from database publicBaseUrl, which must be changed to `.net`
+  after the final restore. Previously sent `.com` links do not automatically move
+  or redirect. Production and trial WEB_ORIGIN both allow only `.net`.
 
 ## Maintenance sequence — prepare, do not execute yet
 
@@ -79,8 +78,10 @@ are retained. Do not merge main while Railway deployments still follow it.
    No completed/failed job should be replayed automatically.
 5. Start target in standby, validate owner and live-key read access, migration
    counts, credentials, Codex and dependencies. Check rendered volume names again.
-6. Once old writers/consumers are stopped and data reconciles, switch consumers
-   and the agreed public entry paths, then explicitly activate target production
+6. Once old writers/consumers are stopped and data reconciles, set the consumer's
+   REVIEW_PILOT_API_BASE to https://reviews.shakingcrab.net and redeploy it. Keep
+   the existing `.net` Coolify domain/certificate/tunnel; no `.com` ingress work
+   is required. Then explicitly activate target production
    and the intended publish/scheduler settings. Record the first new target write.
 7. Perform the approved business acceptance (Google sync, generation, one intended
    publication/notification/webhook as applicable), inspect queue errors and shared
