@@ -37,6 +37,6 @@ docker buildx build --builder "$builder" --platform linux/arm64 --load \
   --progress plain --provenance=false \
   --build-arg SOURCE_REVISION="$revision" \
   --build-arg API_PROXY_URL=http://api:4000 \
-  --build-arg REVIEW_PILOT_TRIAL_MODE=true \
+  --build-arg PUBLIC_WEB_ORIGIN=https://reviews.shakingcrab.net \
   -t "review-pilot:$revision" -t "review-pilot:$image_tag" .
 REVIEW_PILOT_IMAGE_TAG="$image_tag" sh scripts/verify-trial-image.sh

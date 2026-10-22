@@ -26,7 +26,8 @@
     "db:generate": "pnpm --filter @review-pilot/db prisma generate",
     "db:deploy": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate deploy",
     "db:migrate": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate dev",
-    "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike"
+    "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike",
+    "test:deployment": "node --test scripts/deployment.test.mjs"
   },
   "dependencies": {
     "@openai/codex": "0.163.0"

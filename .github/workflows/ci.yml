@@ -38,6 +38,9 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
+      - name: Deployment contracts
+        run: pnpm test:deployment
+
       - name: Typecheck
         run: pnpm typecheck
 

@@ -95,3 +95,8 @@ Rollback of this trial means stopping its application and removing only its
 new ingress record/route. Never automatically copy trial writes back into
 Railway. Production cutover, final sync, backups and single-consumer scheduling
 require a separate approved plan.
+
+Production preparation and the separate activation procedure are documented in
+[`coolify-production.md`](coolify-production.md). Trial explicitly uses API
+environment `test`; copied live clients remain revoked. OAuth setup can be enabled
+for a bounded authorization window without enabling business actions.

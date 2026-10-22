@@ -6,16 +6,20 @@ const nextConfig = (phase) => {
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? (githubPages ? "/review-pilot" : "");
   const staticExport = demoMode || githubPages;
   const apiProxyUrl = process.env.API_PROXY_URL?.replace(/\/$/, "");
-  const trialMode = process.env.REVIEW_PILOT_TRIAL_MODE === "true";
+  const publicOrigin = process.env.PUBLIC_WEB_ORIGIN ||
+    (process.env.REVIEW_PILOT_TRIAL_MODE === "true" ? "https://reviews.shakingcrab.net" : "");
+  if (publicOrigin && (new URL(publicOrigin).protocol !== "https:" || new URL(publicOrigin).origin !== publicOrigin)) {
+    throw new Error("PUBLIC_WEB_ORIGIN must be an HTTPS origin without a path");
+  }
 
   return {
     ...(process.env.NEXT_BUILD_CPUS ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } } : {}),
-    ...(trialMode ? {
+    ...(publicOrigin ? {
       async redirects() {
         return [{
           source: "/:path*",
           has: [{ type: "header", key: "cf-visitor", value: '.*"scheme"\\s*:\\s*"http".*' }],
-          destination: "https://reviews.shakingcrab.net/:path*",
+          destination: `${publicOrigin}/:path*`,
           permanent: true
         }];
       },
