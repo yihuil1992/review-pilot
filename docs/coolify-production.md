@@ -14,7 +14,9 @@ are retained. Do not merge main while Railway deployments still follow it.
   enabled, and start with `docker compose up -d --no-build`.
 - Set `REVIEW_PILOT_IMAGE_TAG=coolify-production` at both build/runtime when
   selecting production Compose. Trial continues to use `coolify-trial`.
-- Preserve application encryption key and the target's persistent Codex state.
+- Preserve the source `APP_SECRET_KEY` and `OWNER_SESSION_SECRET`, plus the
+  target's persistent Codex state. The session secret also signs existing SMS
+  review links; the trial's independent secret must not replace it at cutover.
   The database's `publicBaseUrl` and `codex` settings take precedence over defaults.
 - Production sets `REVIEW_PILOT_ENV=live`. `REVIEW_PILOT_PRODUCTION_ACTIVE` defaults
   to `false`: its entrypoint forces trial guards and all schedulers off. Only the
@@ -46,9 +48,16 @@ are retained. Do not merge main while Railway deployments still follow it.
   A real test delivery can send Discord notifications; do not use it as a safe
   connectivity check before cutover.
 - Twilio sending uses the restored account credentials and sender. Signed review
+  link migration also requires the original session-signing secret. Recheck the
+  restored token: if source credentials are stale and the target has a verified
+  token for the same account/sender, preserve that token during the final import.
+  No SMS is sent by credential verification. Signed review
   links derive their destination from database publicBaseUrl. Old `.com` links
   need an agreed ingress redirect/proxy plan; changing the new publicBaseUrl alone
   does not move existing links or API consumers.
+  Prefer an old-domain alias/proxy that preserves API Authorization headers;
+  cross-origin redirects can strip credentials. Do not change old-domain routing
+  until the approved cutover.
 
 ## Maintenance sequence — prepare, do not execute yet
 
