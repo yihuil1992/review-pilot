@@ -18,7 +18,7 @@ x-environment: &environment
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
   APP_SECRET_KEY: ${APP_SECRET_KEY:?}
   OWNER_SESSION_SECRET: ${OWNER_SESSION_SECRET:?}
-  WEB_ORIGIN: https://reviews.shakingcrab.net
+  WEB_ORIGIN: https://reviews.shakingcrab.net,https://reviews.shakingcrab.com
   PUBLIC_BASE_URL: https://reviews.shakingcrab.net
   REVIEW_PILOT_PRODUCTION_ACTIVE: ${REVIEW_PILOT_PRODUCTION_ACTIVE:-false}
   REVIEW_PILOT_OAUTH_SETUP_ENABLED: ${REVIEW_PILOT_OAUTH_SETUP_ENABLED:-false}

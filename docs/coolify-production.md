@@ -58,6 +58,8 @@ are retained. Do not merge main while Railway deployments still follow it.
   Prefer an old-domain alias/proxy that preserves API Authorization headers;
   cross-origin redirects can strip credentials. Do not change old-domain routing
   until the approved cutover.
+  Production WEB_ORIGIN allows both owned domains so browser actions through the
+  legacy alias pass the API's origin check; the trial still allows only `.net`.
 
 ## Maintenance sequence — prepare, do not execute yet
 
