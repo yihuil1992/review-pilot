@@ -34,12 +34,36 @@ Railway remains production. Do not use the development docker-compose.yml.
    tailnet. The trial web build redirects Cloudflare's original HTTP scheme
    to HTTPS and adds HSTS/noindex headers, since the origin connection itself
    is HTTPS for both kinds of public request.
-6. For native GitHub push deployments, use the custom build command
-   `COMPOSE_PARALLEL_LIMIT=1 docker compose build` and start command
-   `docker compose up -d --no-build`. This serializes builds on the shared VM.
-   Enable automatic deployment only on the trial branch. The first bootstrap
-   may import a locally verified ARM64 image and start only postgres/redis
-   while restoring data; remove that bootstrap-only build override afterward.
+6. Keep automatic deployment disabled on this shared 4 GiB VM until a bounded
+   build path is capacity-validated. A native build hit global OOM during
+   dependency installation, also killing a Coolify job worker. Compose build
+   serialization alone does not cap BuildKit or installation memory. Build the
+   clean trial commit on a separate Linux ARM64 Docker host instead:
+
+   ```sh
+   revision=$(git rev-parse HEAD)
+   test -z "$(git status --porcelain)"
+   docker build --platform linux/arm64 --build-arg SOURCE_REVISION="$revision" \
+     --build-arg REVIEW_PILOT_TRIAL_MODE=true --build-arg API_PROXY_URL=http://api:4000 \
+     -t "review-pilot:$revision" -t review-pilot:coolify-trial .
+   ```
+
+   Import the image through `docker save` / `docker load` into the remote
+   `colima-coolify` context, retaining the preceding image for rollback. In
+   Coolify use the custom build command below to require an imported image
+   whose source revision matches the checked-out trial commit:
+
+   ```sh
+   test "$(docker image inspect review-pilot:coolify-trial --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$(git rev-parse HEAD)"
+   ```
+
+   Then deploy through Coolify with start command `docker compose up -d --no-build`.
+   Coolify still owns source retrieval, Compose, environment, domains and
+   persistent volumes. A missing or mismatched image must fail before startup;
+   importing an image alone does not deploy it. The Dockerfile bounds Node heap
+   before dependency installation and reduces pnpm concurrency, but those
+   settings do not prove shared-VM build capacity. Re-enable automatic builds
+   only after a separately verified build-server or resource-isolated path.
 
 ## Isolation and limitations
 
@@ -63,7 +87,7 @@ Railway remains production. Do not use the development docker-compose.yml.
   independent. Worker operation verification must enqueue and await a job;
   process/container state alone is insufficient.
 - Runtime memory caps support a bounded trial, not a production capacity SLA.
-  Docker builds should be serialized/offloaded on a shared 4 GiB VM. The
+  Docker builds are currently offloaded from the shared 4 GiB VM. The
   optional NEXT_BUILD_CPUS setting limits Next.js build parallelism.
 - An initialized volume is owned by the node user (uid 1000). Preserve ownership
   when importing state. The database uses PG18's `/var/lib/postgresql` mount.

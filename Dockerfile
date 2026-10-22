@@ -4,14 +4,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/* && corepack enable
 WORKDIR /app
 COPY . .
-RUN pnpm install --frozen-lockfile
 ENV NODE_OPTIONS=--max-old-space-size=768 NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD_CPUS=1
+RUN pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=4
 ARG API_PROXY_URL=http://api:4000
 ARG REVIEW_PILOT_TRIAL_MODE=false
 ENV API_PROXY_URL=${API_PROXY_URL} NEXT_PUBLIC_API_BASE_URL=/api REVIEW_PILOT_TRIAL_MODE=${REVIEW_PILOT_TRIAL_MODE}
 RUN pnpm build:api && pnpm build:worker && pnpm build:web
 
 FROM node:22-bookworm-slim AS runtime
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates git \
     && rm -rf /var/lib/apt/lists/* && corepack enable
 WORKDIR /app
