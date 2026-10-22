@@ -25,6 +25,10 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
   to `false`: its entrypoint forces trial guards and all schedulers off. Only the
   exact value `true` enables production effects; invalid values fail startup.
   Individual scheduler flags can remain disabled even after activation.
+- Twilio is intentionally unconfigured. Do not migrate Twilio environment variables,
+  account/sender settings or auth-token secrets. After the database restore, remove
+  TwilioConfig and SecretValue rows with scope `twilio` in standby. Production
+  notification scheduling stays false; business webhooks remain independent.
 - Keep `REVIEW_PILOT_OAUTH_SETUP_ENABLED=false` normally. An explicitly enabled
   setup window permits only the existing OAuth code exchange and userinfo lookup;
   Google business actions, SMS and webhook dispatch remain blocked in standby.
@@ -51,14 +55,12 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
   Preserve endpoint IDs, signing secret and delivery/event idempotency records.
   A real test delivery can send Discord notifications; do not use it as a safe
   connectivity check before cutover.
-- Twilio sending uses the restored account credentials and sender. Signed review
-  link migration also requires the original session-signing secret. Recheck the
-  restored token: if source credentials are stale and the target has a verified
-  token for the same account/sender, preserve that token during the final import.
-  No SMS is sent by credential verification. Newly generated review links derive
-  their destination from database publicBaseUrl, which must be changed to `.net`
-  after the final restore. Previously sent `.com` links do not automatically move
-  or redirect. Production and trial WEB_ORIGIN both allow only `.net`.
+- Twilio credentials, SMS sending and SMS readiness checks are excluded. Preserve
+  historical notification records and existing provider accounts/numbers unchanged.
+  A Settings indicator saying Twilio is unconfigured is expected, not a cutover gate.
+  Links derive their destination from database publicBaseUrl, which must be changed
+  to `.net` after final restore. Previously sent `.com` links do not automatically
+  move or redirect. Production and trial WEB_ORIGIN both allow only `.net`.
 
 ## Maintenance sequence — prepare, do not execute yet
 
@@ -72,6 +74,8 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
    tables. Retain encryption material. Apply `.net` publicBaseUrl and target Codex
    paths; preserve a newly refreshed target Google grant. Remove trial-only fixtures
    via replacement of the database, not by merging the trial copy into production.
+   Remove restored Twilio configuration/token rows before leaving standby; do not
+   delete historical notification records or business webhook settings.
 4. If queues contain unfinished work, preserve/reconcile job IDs, payloads, retry/
    delay state and database idempotency records under the freeze. Do not start an
    empty production queue merely because the earlier inspection was empty.
@@ -84,7 +88,7 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
    is required. Then explicitly activate target production
    and the intended publish/scheduler settings. Record the first new target write.
 7. Perform the approved business acceptance (Google sync, generation, one intended
-   publication/notification/webhook as applicable), inspect queue errors and shared
+   publication/business webhook as applicable; no SMS), inspect queue errors and shared
    workload resources. Retain Railway during the agreed observation period.
 
 Before target writes, rollback can restore old routing/settings and resume the
