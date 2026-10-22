@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
 import { basename, dirname, join, resolve } from "node:path";
 import { PrismaService } from "../prisma.service.js";
@@ -195,12 +195,12 @@ export class SettingsService {
   async getTwilioSettings(): Promise<{ accountSid: string; authToken: string; fromNumber: string }> {
     const config = await this.prisma.twilioConfig.findFirst();
     if (!config) {
-      throw new Error("Twilio is not configured");
+      throw new BadRequestException("Twilio is not configured. SMS notifications are optional.");
     }
 
     const secret = await this.prisma.secretValue.findUnique({ where: { id: config.authTokenSecretId } });
     if (!secret) {
-      throw new Error("Twilio auth token is missing");
+      throw new BadRequestException("Twilio auth token is missing. Save Twilio credentials before validating.");
     }
 
     return {
