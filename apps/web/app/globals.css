@@ -3668,6 +3668,11 @@ button.rp-chip:focus-visible {
   box-shadow: var(--control-shadow);
 }
 
+.settings-select-menu {
+  max-height: min(20rem, 50vh);
+  background: var(--popover);
+}
+
 .review-location-option:hover,
 .review-location-option:focus-visible,
 .settings-select-option:hover,
