@@ -1,3 +1,4 @@
+import { assertExternalActionsAllowed } from "@review-pilot/shared";
 import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@review-pilot/db";
@@ -425,6 +426,7 @@ function starRatingToNumber(rating: string | undefined): number {
 }
 
 async function postForm<T>(url: string, body: Record<string, string>): Promise<T> {
+  assertExternalActionsAllowed();
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -435,6 +437,7 @@ async function postForm<T>(url: string, body: Record<string, string>): Promise<T
 
 async function googleFetch<T>(url: string, accessToken: string, init: RequestInit = {}): Promise<T> {
   return retryTransientGoogleRequest(async () => {
+    assertExternalActionsAllowed();
     const response = await fetch(url, {
       ...init,
       headers: {

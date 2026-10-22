@@ -10,6 +10,7 @@ const host = process.env.HOSTNAME ?? "::";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.enableShutdownHooks();
   app.use(json({ limit: process.env.API_BODY_LIMIT ?? "256kb" }));
   app.use(apiRequestContext);
   const trustProxy = process.env.TRUST_PROXY;

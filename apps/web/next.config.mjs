@@ -8,6 +8,7 @@ const nextConfig = (phase) => {
   const apiProxyUrl = process.env.API_PROXY_URL?.replace(/\/$/, "");
 
   return {
+    ...(process.env.NEXT_BUILD_CPUS ? { experimental: { cpus: Number(process.env.NEXT_BUILD_CPUS) } } : {}),
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? ".next-dev" : ".next",
     ...(apiProxyUrl
       ? {

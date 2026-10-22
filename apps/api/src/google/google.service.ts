@@ -1,3 +1,4 @@
+import { assertExternalActionsAllowed } from "@review-pilot/shared";
 import { BadGatewayException, BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
 import { randomBytes } from "node:crypto";
@@ -360,6 +361,7 @@ export class GoogleService {
 }
 
 async function postForm<T>(url: string, body: Record<string, string>): Promise<T> {
+  assertExternalActionsAllowed();
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -369,6 +371,7 @@ async function postForm<T>(url: string, body: Record<string, string>): Promise<T
 }
 
 async function googleFetch<T>(url: string, accessToken: string, init: RequestInit = {}): Promise<T> {
+  assertExternalActionsAllowed();
   const response = await fetch(url, {
     ...init,
     headers: {

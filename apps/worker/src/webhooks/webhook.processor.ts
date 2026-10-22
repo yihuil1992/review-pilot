@@ -1,3 +1,4 @@
+import { assertExternalActionsAllowed } from "@review-pilot/shared";
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { signWebhookPayload, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData } from "@review-pilot/shared";
 import { Job, Worker } from "bullmq";
@@ -32,6 +33,7 @@ export class WebhookProcessor implements OnModuleInit, OnModuleDestroy {
     const secret = this.crypto.decryptSecret(delivery.endpoint.secretEncrypted);
     const signature = signWebhookPayload(secret, timestamp, body);
     try {
+      assertExternalActionsAllowed();
       const response = await fetch(delivery.endpoint.url, {
         method: "POST",
         headers: {

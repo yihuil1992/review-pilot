@@ -1,3 +1,4 @@
+import { assertExternalActionsAllowed } from "@review-pilot/shared";
 import { BadGatewayException, Inject, Injectable } from "@nestjs/common";
 import { CryptoService } from "../security/crypto.service.js";
 import { SettingsService } from "../settings/settings.service.js";
@@ -110,6 +111,7 @@ async function twilioFetch(
   authToken: string,
   init: RequestInit = {}
 ): Promise<TwilioResponse> {
+  assertExternalActionsAllowed();
   const response = await fetch(url, {
     ...init,
     headers: {
