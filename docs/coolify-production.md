@@ -50,7 +50,7 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
 
 ## Integration configuration and historical handoff
 
-- SC Tools calls `http://review-pilot-api:4000` through the external Docker
+- SC Tools can call `http://review-pilot-api:4000` through the external Docker
   `coolify` network. Only the production API service joins this shared network,
   with the stable `review-pilot-api` alias; its default private network is retained
   for PostgreSQL and Redis. Other Review Pilot services stay on the private
