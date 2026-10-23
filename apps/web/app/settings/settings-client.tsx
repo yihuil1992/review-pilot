@@ -772,6 +772,7 @@ export function SettingsClient() {
                 id="clientSecret"
                 name="clientSecret"
                 type="password"
+                autoComplete="new-password"
                 placeholder={bootstrap?.googleOAuth?.clientSecretConfigured ? `${bootstrap.googleOAuth.clientSecretMasked ?? "••••••••"} saved, leave blank to keep` : "Required before connecting Google"}
                 required={!bootstrap?.googleOAuth?.clientSecretConfigured}
               />
