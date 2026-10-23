@@ -32,6 +32,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24.22.1
+          # This job scans manifests without installing application packages.
+          package-manager-cache: false
 
       - name: Install verified OSV-Scanner 2.7.0
         shell: bash
@@ -56,6 +58,15 @@ jobs:
 
       - name: Scan complete pnpm lockfile
         run: node scripts/security-scan.mjs
+
+      - name: Record workflow outcomes including initialization failures
+        if: always()
+        shell: bash
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p security-reports/current
+          printf '%s\n' "$STEP_OUTCOMES" > security-reports/current/workflow-status.json
 
       - name: Retain full scan evidence on success or failure
         if: always()
