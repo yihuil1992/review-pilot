@@ -2,3 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Nest 11 pins Multer 2.4.0. Keep the fix scoped to this parent until upstream updates.
+overrides:
+  "@nestjs/platform-express@11.2.8>multer": "2.5.0"
+

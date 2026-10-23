@@ -52,9 +52,12 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
 
 - SC Tools can call `http://review-pilot-api:4000` through the external Docker
   `coolify` network. Only the production API service joins this shared network,
-  with the stable `review-pilot-api` alias; its default private network is retained
-  for PostgreSQL and Redis. Other Review Pilot services stay on the private
-  project network. Create the external `coolify` network before deploying this
+  with the stable `review-pilot-api` alias. All Review Pilot services share a
+  project-scoped `review-pilot-private` network; PostgreSQL and Redis have unique
+  `review-pilot-postgres` / `review-pilot-redis` aliases used by their connection
+  URLs. Generic `postgres` / `redis` names collide with Coolify's own services
+  when an API joins both networks. Other Review Pilot services stay private.
+  Create the external `coolify` network before deploying this
   production Compose on another host. Do not publish API port 4000 on the host.
 - Set the consumer's runtime `REVIEW_PILOT_API_BASE` to this internal origin,
   without `/api/v1`. Keep `REVIEW_PILOT_API_KEY` and all existing scopes; internal
