@@ -99,6 +99,10 @@ export class SettingsService {
   async saveGoogleOAuth(settings: { clientId: string; clientSecret?: string }) {
     const clientSecret = settings.clientSecret?.trim();
     if (clientSecret) {
+      const owner = await this.prisma.ownerUser.findFirst();
+      if (owner && await this.crypto.verifyPassword(clientSecret, owner.passwordHash)) {
+        throw new BadRequestException("The Google client secret cannot be your Review Pilot login password. Paste the OAuth client secret from Google Cloud, or leave this field blank to keep the saved secret.");
+      }
       await this.upsertSecret("google", "clientSecret", clientSecret);
     } else {
       const existingSecret = await this.prisma.secretValue.findUnique({ where: { scope_key: { scope: "google", key: "clientSecret" } } });
