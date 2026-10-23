@@ -2,7 +2,9 @@ import {
   ApiClientCreateBodySchema,
   ExternalDraftEditBodySchema,
   ExternalPublishBodySchema,
-  ExternalReviewListQuerySchema
+  ExternalReviewListQuerySchema,
+  ExternalLocationPatchBodySchema,
+  WebhookEnvelopeSchema
 } from "@review-pilot/shared";
 import { describe, expect, it } from "vitest";
 
@@ -31,5 +33,30 @@ describe("external API contracts", () => {
     });
     expect(parsed.allLocations).toBe(false);
     expect(parsed.locationIds).toEqual([]);
+  });
+
+  it("preserves sparse patches and string-key webhook payloads under Zod 4", () => {
+    expect(ExternalLocationPatchBodySchema.parse({ enabled: false })).toEqual({ enabled: false });
+    expect(() => ExternalLocationPatchBodySchema.parse({})).toThrow();
+    const envelope = {
+      eventId: "event-1", eventType: "review.updated", occurredAt: "2026-10-23T00:00:00Z",
+      resourceType: "review", resourceId: "review-1", resourceVersion: "2",
+      data: { nested: { values: [1, null, true] }, "custom-key": "value" }
+    };
+    expect(WebhookEnvelopeSchema.parse(envelope)).toEqual(envelope);
+    expect(() => WebhookEnvelopeSchema.parse({ ...envelope, data: [] })).toThrow();
+    expect(ExternalReviewListQuerySchema.parse({ limit: "12", rating: "5" })).toMatchObject({ limit: 12, rating: 5 });
+  });
+
+  it("rejects oversized invalid collections without generating an issue for every element", () => {
+    const result = ApiClientCreateBodySchema.safeParse({
+      name: "Internal system", environment: "test", scopes: ["reviews:read"],
+      ownerPassword: "synthetic-test-only", locationIds: Array(10_000).fill(null)
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.length).toBeLessThan(10);
+      expect(result.error.issues.some((issue) => issue.code === "too_big")).toBe(true);
+    }
   });
 });

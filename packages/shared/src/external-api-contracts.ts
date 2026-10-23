@@ -154,7 +154,7 @@ export const WebhookEnvelopeSchema = z.object({
   resourceType: z.string(),
   resourceId: z.string(),
   resourceVersion: z.string(),
-  data: z.record(z.unknown())
+  data: z.record(z.string(), z.unknown())
 });
 
 export type ApiClientEnvironment = z.infer<typeof ApiClientEnvironmentSchema>;

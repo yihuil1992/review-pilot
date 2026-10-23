@@ -10,12 +10,13 @@ x-runtime: &runtime
   init: true
   restart: unless-stopped
   stop_grace_period: 90s
+  networks: [review-pilot-private]
 
 x-environment: &environment
   NODE_ENV: production
   REVIEW_PILOT_ENV: live
-  DATABASE_URL: postgresql://review_pilot:${POSTGRES_PASSWORD:?}@postgres:5432/review_pilot
-  REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+  DATABASE_URL: postgresql://review_pilot:${POSTGRES_PASSWORD:?}@review-pilot-postgres:5432/review_pilot
+  REDIS_URL: redis://:${REDIS_PASSWORD:?}@review-pilot-redis:6379
   APP_SECRET_KEY: ${APP_SECRET_KEY:?}
   OWNER_SESSION_SECRET: ${OWNER_SESSION_SECRET:?}
   WEB_ORIGIN: https://reviews.shakingcrab.net
@@ -37,6 +38,9 @@ services:
   postgres:
     image: postgres:18.6-bookworm
     restart: unless-stopped
+    networks:
+      review-pilot-private:
+        aliases: [review-pilot-postgres]
     environment:
       POSTGRES_DB: review_pilot
       POSTGRES_USER: review_pilot
@@ -52,6 +56,9 @@ services:
   redis:
     image: redis:8.2.9-alpine
     restart: unless-stopped
+    networks:
+      review-pilot-private:
+        aliases: [review-pilot-redis]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
     command: [sh, -c, 'exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction']
@@ -81,6 +88,10 @@ services:
       TRUST_PROXY: "true"
     command: [node, apps/api/dist/apps/api/src/main.js]
     expose: ["4000"]
+    networks:
+      review-pilot-private: {}
+      coolify:
+        aliases: [review-pilot-api]
     volumes:
       - runtime-state:/app/review-pilot-state
     mem_limit: 768m
@@ -128,6 +139,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 45s
+
+networks:
+  review-pilot-private: {}
+  coolify:
+    external: true
+    name: coolify
 
 volumes:
   postgres-data:

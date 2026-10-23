@@ -54,6 +54,19 @@ See [External API](external-api.md) for scopes, rotation, errors, webhooks, and 
 
 ## Dependency security
 
+Zod is pinned to 4.6.7 across all workspace consumers to address
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
+OpenAPI 3.1 schemas use Zod's native JSON Schema 2020-12 conversion, removing
+the prototype-extension adapter and its CJS/ESM instance coupling. Contract tests
+cover bounded oversized-array rejection, webhook records, sparse patches,
+pagination coercion, explicit live confirmation and generated OpenAPI.
+
+Nest 11.2.8 pins Multer 2.4.0, affected by
+[GHSA-q7qp-rjg7-q26m](https://github.com/expressjs/multer/security/advisories/GHSA-q7qp-rjg7-q26m).
+A parent-scoped pnpm override selects the fixed 2.5.0 package; remove it once
+the selected Nest release itself requires a fixed version. The complete lockfile
+is still scanned, with no advisory suppression or severity filter.
+
 Use Node 24.22.1 and pnpm 10.33.0. Install OSV-Scanner 2.7.0 from its
 [official release](https://github.com/google/osv-scanner/releases/tag/v2.7.0),
 verify the release checksum, and put it on PATH or set `OSV_SCANNER` to its path.
@@ -66,8 +79,9 @@ pnpm audit --json
 ```
 
 The OSV gate scans the entire pnpm lockfile, including development and optional
-platform packages. There are no platform filters, severity exclusions, advisory
-ignores or dependency overrides. Every finding blocks the check. A tool,
+platform packages. There are no platform filters, severity exclusions or advisory
+ignores. The documented Multer override installs a patched package; it does not
+exclude it from scanning. Every finding blocks the check. A tool,
 download, network, parsing, empty-report or source-mismatch failure also blocks
 it. The runner checks both the scanner exit code and report contents, and removes
 stale JSON before scanning. The checked-in empty scanner configuration makes the
@@ -81,7 +95,8 @@ receives an advisory, update it to a verified fixed version; do not weaken the
 gate. Local reports are ignored by Git and excluded from Docker builds.
 
 The `Dependency security` GitHub workflow runs on PRs, pushes to `main`,
-`yihui/**` and `codex/**`, manual dispatch, and daily at 10:23 UTC. **Scheduled
+manual dispatch, and daily at 10:23 UTC. Feature-branch pushes do not launch a
+second copy of the same PR scan. **Scheduled
 runs only become active after the workflow enters the default branch.** It uses
 read-only repository permissions and uploads the complete scan/control evidence
 on success or failure, with 30-day retention. Download failures retain setup
