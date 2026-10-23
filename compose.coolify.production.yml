@@ -81,6 +81,10 @@ services:
       TRUST_PROXY: "true"
     command: [node, apps/api/dist/apps/api/src/main.js]
     expose: ["4000"]
+    networks:
+      default: {}
+      coolify:
+        aliases: [review-pilot-api]
     volumes:
       - runtime-state:/app/review-pilot-state
     mem_limit: 768m
@@ -128,6 +132,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 45s
+
+networks:
+  coolify:
+    external: true
+    name: coolify
 
 volumes:
   postgres-data:

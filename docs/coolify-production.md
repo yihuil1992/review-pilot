@@ -7,7 +7,8 @@ The former `codex/coolify-trial` branch name is historical.
 
 The old Railway review-pilot project was retired on 2026-10-22; its provider
 recovery grace period ends on 2026-10-24 at 19:28 EDT. Do not restart old writers.
-The separate sc-tools-backend project remains active on Railway.
+SC Tools now runs on the same Coolify host; its old Railway URL retains only a
+compatibility forwarding gateway.
 
 The existing Coolify application retains its database, Redis and Codex state
 volumes. Production is explicitly active, Google sync and automatic draft generation
@@ -48,6 +49,19 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
   runtime headroom with the existing shared workloads; limits are not reservations.
 
 ## Integration configuration and historical handoff
+
+- SC Tools calls `http://review-pilot-api:4000` through the external Docker
+  `coolify` network. Only the production API service joins this shared network,
+  with the stable `review-pilot-api` alias; its default private network is retained
+  for PostgreSQL and Redis. Other Review Pilot services stay on the private
+  project network. Create the external `coolify` network before deploying this
+  production Compose on another host. Do not publish API port 4000 on the host.
+- Set the consumer's runtime `REVIEW_PILOT_API_BASE` to this internal origin,
+  without `/api/v1`. Keep `REVIEW_PILOT_API_KEY` and all existing scopes; internal
+  networking does not replace authentication. Use an authenticated GET to
+  `/api/v1/system/status` for verification, not a business webhook or send.
+  The public origin remains available for remote callers and routing rollback.
+  Replace the consumer through its normal drain procedure when changing env.
 
 - Google callback: `https://reviews.shakingcrab.net/api/google/oauth/callback`.
   Production uses only the `.net` callback. Historical `.com` and Railway callback
