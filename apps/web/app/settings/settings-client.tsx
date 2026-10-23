@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, CheckCircle2, ChevronDown, CircleAlert, CircleDashed, Copy, ExternalLink, RefreshCw } from "lucide-react";
+import { CodexModelCatalogSchema, type CodexModelOption } from "@review-pilot/shared/settings-contracts";
 
 import { demoBootstrap, demoGoogleAccounts, demoLocations } from "@/lib/demo-data";
 import { demoMode } from "@/lib/demo-mode";
@@ -105,13 +106,6 @@ const fullApiScopes = [
   "publish-mode:manage"
 ];
 
-const codexModelOptions = [
-  { value: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
-  { value: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
-  { value: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
-  { value: "gpt-5.5", label: "GPT-5.5" },
-  { value: "custom", label: "Custom" }
-];
 const codexLoginToastId = "codex-login";
 
 export function SettingsClient() {
@@ -119,6 +113,9 @@ export function SettingsClient() {
   const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
   const [locations, setLocations] = useState<BusinessLocation[]>([]);
   const [codexModel, setCodexModel] = useState("gpt-5.6-sol");
+  const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [codexLogin, setCodexLogin] = useState<CodexLoginStatus | null>(null);
   const [codexRuntime, setCodexRuntime] = useState<CodexRuntimeStatus | null>(null);
   const [googleCallbackUrl, setGoogleCallbackUrl] = useState<string | null>(null);
@@ -130,12 +127,20 @@ export function SettingsClient() {
   const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null);
   const codexLoginPollRef = useRef(0);
   const modelMenuRef = useRef<HTMLDivElement | null>(null);
+  const codexModelOptions = codexModels.map((model) => ({ value: model.id, label: model.displayName }));
+  for (const selected of [bootstrap?.codex.model, codexModel]) {
+    if (selected && selected !== "custom" && !codexModelOptions.some((option) => option.value === selected)) {
+      codexModelOptions.push({ value: selected, label: selected });
+    }
+  }
+  codexModelOptions.push({ value: "custom", label: "Custom" });
   const visibleLocations = locations.filter((location) => location.googleOpenStatus !== "CLOSED_PERMANENTLY");
   const enabledLocationCount = visibleLocations.filter((location) => location.enabled).length;
   const enabledNotificationNumberCount = visibleLocations.filter((location) => location.enabled && location.notificationPhoneNumber).length;
 
   useEffect(() => {
     void refreshBootstrap();
+    void loadCodexModels();
     return () => {
       codexLoginPollRef.current += 1;
     };
@@ -178,7 +183,7 @@ export function SettingsClient() {
     const data = await response.json();
     setBootstrap(data);
     if (data.codex?.model) {
-      setCodexModel(codexModelOptions.some((option) => option.value === data.codex.model) ? data.codex.model : "custom");
+      setCodexModel(data.codex.model);
     }
     if (data.googleCallbackUrl) {
       setGoogleCallbackUrl(data.googleCallbackUrl);
@@ -186,6 +191,27 @@ export function SettingsClient() {
     setPublishTestMode(Boolean(data.publishTestMode));
     void loadGoogleResources();
     void loadIntegrationClients();
+  }
+
+  async function loadCodexModels() {
+    if (demoMode) return;
+    setModelsLoading(true);
+    setModelsError(null);
+    try {
+      const response = await fetch(`${apiBase}/settings/codex/models`, {
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(65_000)
+      });
+      if (!response.ok) throw new Error("Model discovery unavailable");
+      const data = CodexModelCatalogSchema.parse(await response.json());
+      if (!data.models.length) throw new Error("No models returned");
+      setCodexModels(data.models);
+    } catch {
+      setModelsError("Could not refresh models. Check Codex login and try again. Your selected model and Custom remain available.");
+    } finally {
+      setModelsLoading(false);
+    }
   }
 
   async function loadIntegrationClients() {
@@ -993,6 +1019,16 @@ export function SettingsClient() {
               </div>
             ) : null}
           </div>
+          {!demoMode ? (
+            <>
+              <button className="button" type="button" onClick={() => void loadCodexModels()} disabled={modelsLoading}>
+                {modelsLoading ? "Loading models…" : "Refresh models"}
+              </button>
+              <p className="settings-help" role="status">
+                {modelsError ?? (modelsLoading ? "Loading available models…" : "Models available to the signed-in Codex account. Your saved model is kept if it is not listed.")}
+              </p>
+            </>
+          ) : null}
         </div>
         {codexModel === "custom" ? (
           <div className="field">

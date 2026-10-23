@@ -1,0 +1,16 @@
+.git
+**/node_modules
+**/dist
+**/.next*
+.env
+.env.*
+!.env.example
+.agent-session
+review-pilot-state
+OWNER_PASSWORD.local.md
+**/*.dump
+**/*.sql
+!packages/db/prisma/migrations/**/migration.sql
+**/*.rdb
+**/*.pem
+**/*.key

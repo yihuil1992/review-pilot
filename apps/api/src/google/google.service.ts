@@ -1,3 +1,4 @@
+import { assertExternalActionsAllowed, assertGoogleOAuthSetupAllowed } from "@review-pilot/shared";
 import { BadGatewayException, BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
 import { randomBytes } from "node:crypto";
@@ -64,13 +65,13 @@ export class GoogleService {
       client_secret: oauth.clientSecret,
       redirect_uri: stateValue.redirectUri,
       grant_type: "authorization_code"
-    });
+    }, true);
 
     if (!token.refresh_token) {
       throw new Error("Google did not return a refresh token. Reconnect with prompt=consent or revoke the old grant first.");
     }
 
-    const user = await googleFetch<GoogleUserInfo>("https://openidconnect.googleapis.com/v1/userinfo", token.access_token);
+    const user = await googleFetch<GoogleUserInfo>("https://openidconnect.googleapis.com/v1/userinfo", token.access_token, {}, true);
     const refreshTokenSecret = await this.prisma.secretValue.upsert({
       where: { scope_key: { scope: "googleRefreshToken", key: user.sub } },
       create: {
@@ -359,7 +360,9 @@ export class GoogleService {
   }
 }
 
-async function postForm<T>(url: string, body: Record<string, string>): Promise<T> {
+async function postForm<T>(url: string, body: Record<string, string>, oauthSetup = false): Promise<T> {
+  if (oauthSetup) assertGoogleOAuthSetupAllowed();
+  else assertExternalActionsAllowed();
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -368,7 +371,9 @@ async function postForm<T>(url: string, body: Record<string, string>): Promise<T
   return parseExternalResponse<T>(response, "Google request failed");
 }
 
-async function googleFetch<T>(url: string, accessToken: string, init: RequestInit = {}): Promise<T> {
+async function googleFetch<T>(url: string, accessToken: string, init: RequestInit = {}, oauthSetup = false): Promise<T> {
+  if (oauthSetup) assertGoogleOAuthSetupAllowed();
+  else assertExternalActionsAllowed();
   const response = await fetch(url, {
     ...init,
     headers: {

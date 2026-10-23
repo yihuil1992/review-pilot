@@ -9,6 +9,7 @@ import {
 } from "@review-pilot/shared";
 import { Job, Worker } from "bullmq";
 import { SettingsService } from "../settings/settings.service.js";
+import { listCodexModels } from "./codex-models.js";
 
 type CodexLoginSession = {
   id: string;
@@ -43,6 +44,9 @@ export class CodexRuntimeWorkerService implements OnModuleInit, OnModuleDestroy 
   }
 
   private process(job: Job) {
+    if (job.name === codexRuntimeJobNames.listModels) {
+      return this.listModels();
+    }
     if (job.name === codexRuntimeJobNames.test) {
       return this.testRuntime();
     }
@@ -53,6 +57,12 @@ export class CodexRuntimeWorkerService implements OnModuleInit, OnModuleDestroy 
       return this.getDeviceLoginStatus();
     }
     throw new Error(`Unsupported Codex runtime job: ${job.name}`);
+  }
+
+  private async listModels() {
+    const settings = await this.settings.getCodexSettings();
+    await ensureRuntimeDirs(settings);
+    return { models: await listCodexModels({ env: runtimeEnv(settings), cwd: settings.codexWorkdir }) };
   }
 
   private async testRuntime() {

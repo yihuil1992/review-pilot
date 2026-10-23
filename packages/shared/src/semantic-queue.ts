@@ -15,6 +15,7 @@ export type SemanticJobData = {
 export const codexRuntimeQueueName = "review-pilot.codex-runtime";
 
 export const codexRuntimeJobNames = {
+  listModels: "codex.runtime.listModels",
   test: "codex.runtime.test",
   startLogin: "codex.runtime.startLogin",
   loginStatus: "codex.runtime.loginStatus"

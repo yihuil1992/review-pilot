@@ -57,6 +57,12 @@ export class SettingsController {
     return this.codexRuntime.testRuntime();
   }
 
+  @Get("codex/models")
+  @UseGuards(OwnerAuthGuard)
+  codexModels() {
+    return this.codexRuntime.listModels();
+  }
+
   @Post("codex/login/start")
   @UseGuards(OwnerAuthGuard)
   startCodexLogin() {
