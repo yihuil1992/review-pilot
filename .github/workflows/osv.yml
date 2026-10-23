@@ -26,16 +26,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        id: checkout
         with:
           persist-credentials: false
 
       - uses: actions/setup-node@v5
+        id: setup_node
         with:
           node-version: 24.22.1
           # This job scans manifests without installing application packages.
           package-manager-cache: false
 
       - name: Install verified OSV-Scanner 2.7.0
+        id: install_scanner
         shell: bash
         run: |
           set -euo pipefail
@@ -51,12 +54,15 @@ jobs:
           echo "OSV_SCANNER=$RUNNER_TEMP/osv-scanner" >> "$GITHUB_ENV"
 
       - name: Verify fail-closed report handling
+        id: gate_tests
         run: node --test scripts/security-scan.test.mjs
 
       - name: Prove vulnerable, patched, malformed and network-failure outcomes
+        id: gate_controls
         run: node scripts/security-scan-smoke.mjs
 
       - name: Scan complete pnpm lockfile
+        id: lockfile_scan
         run: node scripts/security-scan.mjs
 
       - name: Record workflow outcomes including initialization failures
