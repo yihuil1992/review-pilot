@@ -1,0 +1,84 @@
+name: Dependency security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'yihui/**'
+      - 'codex/**'
+  workflow_dispatch:
+  # GitHub only enables schedules once this file is on the default branch.
+  schedule:
+    - cron: '23 10 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  osv:
+    name: Full lockfile OSV scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        id: checkout
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        id: setup_node
+        with:
+          node-version: 24.22.1
+          # This job scans manifests without installing application packages.
+          package-manager-cache: false
+
+      - name: Install verified OSV-Scanner 2.7.0
+        id: install_scanner
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-reports/current
+          exec > >(tee security-reports/current/setup.log) 2>&1
+          curl --fail --show-error --location --retry 3 \
+            --connect-timeout 15 --max-time 120 \
+            https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64 \
+            -o "$RUNNER_TEMP/osv-scanner"
+          echo "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b  $RUNNER_TEMP/osv-scanner" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+          "$RUNNER_TEMP/osv-scanner" --version
+          echo "OSV_SCANNER=$RUNNER_TEMP/osv-scanner" >> "$GITHUB_ENV"
+
+      - name: Verify fail-closed report handling
+        id: gate_tests
+        run: node --test scripts/security-scan.test.mjs
+
+      - name: Prove vulnerable, patched, malformed and network-failure outcomes
+        id: gate_controls
+        run: node scripts/security-scan-smoke.mjs
+
+      - name: Scan complete pnpm lockfile
+        id: lockfile_scan
+        run: node scripts/security-scan.mjs
+
+      - name: Record workflow outcomes including initialization failures
+        if: always()
+        shell: bash
+        env:
+          STEP_OUTCOMES: ${{ toJSON(steps) }}
+        run: |
+          mkdir -p security-reports/current
+          printf '%s\n' "$STEP_OUTCOMES" > security-reports/current/workflow-status.json
+
+      - name: Retain full scan evidence on success or failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: osv-${{ github.run_id }}-${{ github.run_attempt }}
+          path: security-reports/current/
+          if-no-files-found: error
+          retention-days: 30

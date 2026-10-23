@@ -20,14 +20,17 @@
     "start:worker": "pnpm db:deploy && pnpm --filter @review-pilot/worker start",
     "start:web": "pnpm --filter @review-pilot/web start",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm --filter @review-pilot/db build && pnpm -r --if-present test",
     "test:external-api-smoke": "pnpm build:api && node scripts/smoke-external-api.mjs",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter @review-pilot/db prisma generate",
     "db:deploy": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate deploy",
     "db:migrate": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate dev",
     "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike",
-    "test:deployment": "node --test scripts/deployment.test.mjs"
+    "test:deployment": "node --test scripts/deployment.test.mjs",
+    "security:scan": "node scripts/security-scan.mjs",
+    "test:security": "node --test scripts/security-scan.test.mjs",
+    "test:database": "pnpm db:generate && pnpm --filter @review-pilot/db build && node scripts/database-smoke.mjs"
   },
   "dependencies": {
     "@openai/codex": "0.163.0"

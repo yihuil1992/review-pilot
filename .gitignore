@@ -15,11 +15,13 @@ coverage/
 **/coverage/
 .turbo/
 .cache/
+security-reports/
 .vercel/
 .railway/
 tmp/
 temp/
 *.tsbuildinfo
+packages/db/src/generated/
 playwright-report/
 test-results/
 

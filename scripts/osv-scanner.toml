@@ -1,0 +1,2 @@
+# Intentionally empty: no ignored advisories, dependency groups or platform filters.
+# The scan command selects the complete pnpm lockfile, including development tools.

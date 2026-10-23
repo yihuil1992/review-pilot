@@ -6,6 +6,10 @@
 .env.*
 !.env.example
 .agent-session
+.cache
+security-reports
+agent-docs
+packages/db/src/generated
 review-pilot-state
 OWNER_PASSWORD.local.md
 **/*.dump
