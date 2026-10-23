@@ -1,11 +1,19 @@
-# Production preparation and cutover
+# Production on Coolify
 
-Railway remains production until the cutover is separately approved. Use
-`compose.coolify.production.yml` for the future production deployment; keep
-`compose.coolify.yml` for the parallel trial. Both use the same native ARM64 image,
-application service names and volume keys. On the existing Coolify application,
-verify its rendered volume names before changing the Compose path so data/state
-are retained. Do not merge main while Railway deployments still follow it.
+Review Pilot has run in production on Coolify since 2026-10-22. PR #18 is merged;
+Coolify now follows `main` with native automatic deployment enabled. Pushes to
+`main` use `sh scripts/build-coolify.sh` and `compose.coolify.production.yml`.
+The former `codex/coolify-trial` branch name is historical.
+
+The old Railway review-pilot project was retired on 2026-10-22; its provider
+recovery grace period ends on 2026-10-24 at 19:28 EDT. Do not restart old writers.
+The separate sc-tools-backend project remains active on Railway.
+
+The existing Coolify application retains its database, Redis and Codex state
+volumes. Production is explicitly active, Google sync and automatic draft generation
+are enabled, and SMS scheduling remains disabled with Twilio unconfigured.
+`compose.coolify.yml` is only for separately isolated trials; do not switch the
+production application back to it. Keep the preceding working image when deploying.
 
 The selected production hostname is exclusively `https://reviews.shakingcrab.net`.
 No old `.com` alias, proxy or redirect is included in the cutover plan.
@@ -39,11 +47,11 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
   webhooks4. Native build remains separately capped at2 GiB/two CPUs. Validate
   runtime headroom with the existing shared workloads; limits are not reservations.
 
-## Integration handoff
+## Integration configuration and historical handoff
 
 - Google callback: `https://reviews.shakingcrab.net/api/google/oauth/callback`.
-  Existing `.com` and Railway callback registrations remain for the retained source
-  environment; the target uses only the `.net` callback. Cleanup is separate.
+  Production uses only the `.net` callback. Historical `.com` and Railway callback
+  registrations are not used by this deployment; provider cleanup is separate.
   A stale source Google grant must not overwrite a refreshed target grant during
   final restore; preserve the relevant GoogleAccount/SecretValue rows securely and
   merge by googleUserId/scope/key. Do not assume the restored token remains usable.
@@ -62,7 +70,10 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
   to `.net` after final restore. Previously sent `.com` links do not automatically
   move or redirect. Production and trial WEB_ORIGIN both allow only `.net`.
 
-## Maintenance sequence — prepare, do not execute yet
+## Historical cutover sequence — completed on 2026-10-22
+
+The following records the one-time migration. Do not repeat its restore/reset steps
+on the active database; the later Railway retirement supersedes its retention steps.
 
 1. Pin reviewed source/image, record source/target versions and state, reserve a
    short maintenance window. Keep Railway resources; prevent either platform's
@@ -91,12 +102,13 @@ No old `.com` alias, proxy or redirect is included in the cutover plan.
    publication/business webhook as applicable; no SMS), inspect queue errors and shared
    workload resources. Retain Railway during the agreed observation period.
 
-Before target writes, rollback can restore old routing/settings and resume the
-old consumer. After target writes, freeze both sides and reconcile/transfer the
+During the original cutover, rollback before target writes could restore old
+routing/settings and resume the old consumer. This is no longer a current recovery
+option after Railway retirement. After target writes, freeze both sides and reconcile/transfer the
 new data or repair forward before resuming one writer. DNS alone does not recover
 new target state. New scheduled/off-host backups and disaster-recovery drills are
 excluded by the user's decision; temporary migration exports are still necessary.
 
 ## Node runtime (2026-10-22)
 
-Both Docker stages and local `.nvmrc` use Node 24.22.1. Dependency versions, migration files, activation flags and scheduler defaults are unchanged. Build the reviewed `codex/coolify-trial` commit once with the existing constrained builder and verify the imported image before replacing containers.
+Both Docker stages and local `.nvmrc` use Node 24.22.1. Dependency versions, migration files, activation flags and scheduler defaults are unchanged. Coolify builds the reviewed `main` commit with the existing constrained builder and verifies the image revision/platform before replacing containers. Keep Include source commit in build and automatic deployment enabled.
