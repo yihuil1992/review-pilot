@@ -96,3 +96,7 @@ old consumer. After target writes, freeze both sides and reconcile/transfer the
 new data or repair forward before resuming one writer. DNS alone does not recover
 new target state. New scheduled/off-host backups and disaster-recovery drills are
 excluded by the user's decision; temporary migration exports are still necessary.
+
+## Node runtime (2026-10-22)
+
+Both Docker stages and local `.nvmrc` use Node 24.22.1. Dependency versions, migration files, activation flags and scheduler defaults are unchanged. Build the reviewed `codex/coolify-trial` commit once with the existing constrained builder and verify the imported image before replacing containers.

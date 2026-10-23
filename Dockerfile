@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates git \
     && rm -rf /var/lib/apt/lists/* && corepack enable
 WORKDIR /app
@@ -13,7 +13,7 @@ ARG REVIEW_PILOT_TRIAL_MODE=false
 ENV API_PROXY_URL=${API_PROXY_URL} NEXT_PUBLIC_API_BASE_URL=/api PUBLIC_WEB_ORIGIN=${PUBLIC_WEB_ORIGIN} REVIEW_PILOT_TRIAL_MODE=${REVIEW_PILOT_TRIAL_MODE}
 RUN pnpm build:api && pnpm build:worker && pnpm build:web
 
-FROM node:22-bookworm-slim AS runtime
+FROM node:24.22.1-bookworm-slim AS runtime
 ARG SOURCE_REVISION=unknown
 LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates git \

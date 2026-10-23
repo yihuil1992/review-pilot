@@ -15,4 +15,6 @@ actual=$(docker image inspect "$image" --format '{{ index .Config.Labels "org.op
 [ "$actual" = "$revision" ] || { echo 'Imported image does not match source commit.' >&2; exit 1; }
 platform=$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')
 [ "$platform" = 'linux/arm64' ] || { echo 'Expected a Linux ARM64 image.' >&2; exit 1; }
+runtime=$(docker run --rm --network none --entrypoint node "$image" --version)
+[ "$runtime" = 'v24.22.1' ] || { echo 'Expected Node 24.22.1 in imported image.' >&2; exit 1; }
 printf 'Verified imported trial image for %s\n' "$revision"
