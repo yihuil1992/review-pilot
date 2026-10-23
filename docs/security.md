@@ -54,6 +54,13 @@ See [External API](external-api.md) for scopes, rotation, errors, webhooks, and 
 
 ## Dependency security
 
+Zod is pinned to 4.6.7 across all workspace consumers to address
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
+OpenAPI 3.1 schemas use Zod's native JSON Schema 2020-12 conversion, removing
+the prototype-extension adapter and its CJS/ESM instance coupling. Contract tests
+cover bounded oversized-array rejection, webhook records, sparse patches,
+pagination coercion, explicit live confirmation and generated OpenAPI.
+
 Use Node 24.22.1 and pnpm 10.33.0. Install OSV-Scanner 2.7.0 from its
 [official release](https://github.com/google/osv-scanner/releases/tag/v2.7.0),
 verify the release checksum, and put it on PATH or set `OSV_SCANNER` to its path.

@@ -1,4 +1,4 @@
-import { OpenAPIRegistry, OpenApiGeneratorV31, extendZodWithOpenApi } from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 import {
   ApiOperationSchema,
   ExternalDraftEditBodySchema,
@@ -9,32 +9,35 @@ import {
   ExternalPublishModeBodySchema,
   ProblemDetailsSchema
 } from "@review-pilot/shared";
-import { z } from "zod";
-
-extendZodWithOpenApi(z);
-
 export function externalApiDocument() {
-  const registry = new OpenAPIRegistry();
-  registry.register("ProblemDetails", ProblemDetailsSchema);
-  registry.register("ApiOperation", ApiOperationSchema);
-  registry.register("DraftEditInput", ExternalDraftEditBodySchema);
-  registry.register("DraftGenerateInput", ExternalDraftGenerateBodySchema);
-  registry.register("DraftRevisionInput", ExternalDraftReviseBodySchema);
-  registry.register("PublishAttemptInput", ExternalPublishBodySchema);
-  registry.register("LocationPatchInput", ExternalLocationPatchBodySchema);
-  registry.register("PublishModeInput", ExternalPublishModeBodySchema);
-  registry.registerComponent("securitySchemes", "BearerAuth", { type: "http", scheme: "bearer", bearerFormat: "ReviewPilotApiKey" });
-  const generator = new OpenApiGeneratorV31(registry.definitions);
-  const document = generator.generateDocument({
-    openapi: "3.1.0",
+  const schemas = {
+    ProblemDetails: ProblemDetailsSchema,
+    ApiOperation: ApiOperationSchema,
+    DraftEditInput: ExternalDraftEditBodySchema,
+    DraftGenerateInput: ExternalDraftGenerateBodySchema,
+    DraftRevisionInput: ExternalDraftReviseBodySchema,
+    PublishAttemptInput: ExternalPublishBodySchema,
+    LocationPatchInput: ExternalLocationPatchBodySchema,
+    PublishModeInput: ExternalPublishModeBodySchema
+  };
+  // OpenAPI 3.1 supports JSON Schema 2020-12. Native conversion avoids
+  // prototype extensions shared across the API's CJS and shared-package ESM.
+  return {
+    openapi: "3.1.0" as const,
     info: {
       title: "Review Pilot External API",
       version: "1.0.0",
       description: "Versioned machine-to-machine API for owner-controlled internal-system integration."
     },
-    servers: [{ url: "/api/v1" }]
-  });
-  return { ...document, paths: paths() };
+    servers: [{ url: "/api/v1" }],
+    components: {
+      schemas: Object.fromEntries(Object.entries(schemas).map(([name, schema]) => [
+        name, z.toJSONSchema(schema, { target: "draft-2020-12", io: "input" })
+      ])),
+      securitySchemes: { BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "ReviewPilotApiKey" } }
+    },
+    paths: paths()
+  };
 }
 
 function paths() {

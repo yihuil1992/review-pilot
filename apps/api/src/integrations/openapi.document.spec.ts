@@ -9,5 +9,11 @@ describe("external OpenAPI contract", () => {
     expect(document.paths["/reviews/{reviewId}/publish-attempts"]?.post?.security).toEqual([{ BearerAuth: [] }]);
     expect(document.components?.schemas?.ProblemDetails).toBeDefined();
     expect(document.components?.securitySchemes?.BearerAuth).toBeDefined();
+    expect(document.components?.schemas?.PublishAttemptInput).toMatchObject({
+      type: "object", required: ["body", "mode"], additionalProperties: false,
+      properties: { confirmLive: { type: "boolean", default: false } }
+    });
+    expect(document.components?.schemas?.DraftEditInput).toMatchObject({ required: ["body", "expectedVersion"] });
+    expect(() => externalApiDocument()).not.toThrow();
   });
 });
