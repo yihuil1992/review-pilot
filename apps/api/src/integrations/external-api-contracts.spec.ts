@@ -4,11 +4,24 @@ import {
   ExternalPublishBodySchema,
   ExternalReviewListQuerySchema,
   ExternalLocationPatchBodySchema,
-  WebhookEnvelopeSchema
+  WebhookEnvelopeSchema,
+  WebhookEndpointCreateBodySchema,
+  WebhookEndpointUpdateBodySchema
 } from "@review-pilot/shared";
 import { describe, expect, it } from "vitest";
 
 describe("external API contracts", () => {
+  it("accepts HTTP(S) syntax while server policy authorizes actual HTTP destinations", () => {
+    const input = { apiClientId: "client", events: ["review.created"], ownerPassword: "synthetic" };
+    for (const url of ["https://example.com/events", "http://receiver:8080/events"]) {
+      expect(WebhookEndpointCreateBodySchema.parse({ ...input, url }).url).toBe(url);
+      expect(WebhookEndpointUpdateBodySchema.parse({ url })).toEqual({ url });
+    }
+    for (const url of ["file:///tmp/events", "ftp://example.com/events", "invalid"]) {
+      expect(WebhookEndpointCreateBodySchema.safeParse({ ...input, url }).success).toBe(false);
+    }
+    expect(WebhookEndpointUpdateBodySchema.parse({ active: false })).toEqual({ active: false });
+  });
   it("applies bounded pagination defaults", () => {
     expect(ExternalReviewListQuerySchema.parse({})).toMatchObject({ limit: 50, status: "unhandled" });
     expect(() => ExternalReviewListQuerySchema.parse({ limit: 201 })).toThrow();

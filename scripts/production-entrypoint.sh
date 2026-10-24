@@ -2,7 +2,7 @@
 set -eu
 
 # Standby still allows local validation and explicitly enabled OAuth setup.
-# Live producers must be stopped before setting this flag in Coolify.
+# Live producers must be stopped before setting this flag in deployment settings.
 case "${REVIEW_PILOT_PRODUCTION_ACTIVE:-false}" in
   false)
     export REVIEW_PILOT_TRIAL_MODE=true

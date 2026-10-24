@@ -110,15 +110,20 @@ export const WebhookEventTypeSchema = z.enum([
 export const webhookEventTypes = WebhookEventTypeSchema.options;
 export type WebhookEventType = z.infer<typeof WebhookEventTypeSchema>;
 
+const WebhookEndpointUrlSchema = z.string().url().refine(
+  (value) => /^https?:\/\//.test(value),
+  "Webhook URL must use HTTPS (HTTP requires a server-side allowlist)"
+);
+
 export const WebhookEndpointCreateBodySchema = z.object({
   apiClientId: z.string().min(1),
-  url: z.string().url().refine((value) => value.startsWith("https://"), "Webhook URL must use HTTPS"),
+  url: WebhookEndpointUrlSchema,
   events: z.array(WebhookEventTypeSchema).min(1),
   ownerPassword: z.string().min(1)
 }).strict();
 
 export const WebhookEndpointUpdateBodySchema = z.object({
-  url: z.string().url().refine((value) => value.startsWith("https://"), "Webhook URL must use HTTPS").optional(),
+  url: WebhookEndpointUrlSchema.optional(),
   events: z.array(WebhookEventTypeSchema).min(1).optional(),
   active: z.boolean().optional()
 }).strict();

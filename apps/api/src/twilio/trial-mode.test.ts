@@ -12,7 +12,7 @@ it("blocks a real SMS path before fetch even when credentials are configured", a
   vi.stubGlobal("fetch", fetch);
   const settings = {
     getTwilioSettings: async () => ({ accountSid: "test", authToken: "test", fromNumber: "+15005550006" }),
-    getPublicBaseUrl: async () => "https://reviews.shakingcrab.net"
+    getPublicBaseUrl: async () => "https://reviews.example.com"
   } as unknown as SettingsService;
   const service = new TwilioService(settings, {} as CryptoService, {} as PrismaService);
   await expect(service.sendTestSms({ toNumber: "+15005550006" })).rejects.toThrow("disabled in this trial");

@@ -49,6 +49,10 @@ The demo is a static frontend preview with sample data. It shows the queue, revi
 
 PostgreSQL is the supported production database. Redis plus BullMQ coordinates background jobs.
 
+For self-hosted containers, see [Docker deployment](docs/docker.md) and
+[`compose.example.yml`](compose.example.yml). Production domains, secrets and
+infrastructure configuration belong in your deployment platform, outside this repository.
+
 ## Local Development
 
 Install dependencies and start local services:
