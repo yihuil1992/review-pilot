@@ -1,4 +1,4 @@
-import { assertExternalActionsAllowed } from "@review-pilot/shared";
+import { assertExternalActionsAllowed, assertWebhookDestinationAllowed } from "@review-pilot/shared";
 import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { signWebhookPayload, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData } from "@review-pilot/shared";
 import { Job, Worker } from "bullmq";
@@ -34,8 +34,10 @@ export class WebhookProcessor implements OnModuleInit, OnModuleDestroy {
     const signature = signWebhookPayload(secret, timestamp, body);
     try {
       assertExternalActionsAllowed();
+      assertWebhookDestinationAllowed(delivery.endpoint.url, process.env.WEBHOOK_ALLOWED_HTTP_URLS);
       const response = await fetch(delivery.endpoint.url, {
         method: "POST",
+        redirect: "error",
         headers: {
           "Content-Type": "application/json",
           "User-Agent": "Review-Pilot-Webhooks/1.0",

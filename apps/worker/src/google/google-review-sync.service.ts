@@ -1,5 +1,5 @@
 import { assertExternalActionsAllowed } from "@review-pilot/shared";
-import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Inject, Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@review-pilot/db";
 import { semanticJobNames, semanticQueueName, type SemanticJobData } from "@review-pilot/shared";
@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma.service.js";
 import { CryptoService } from "../security/crypto.service.js";
 import { SettingsService } from "../settings/settings.service.js";
 import { WebhookEmitterService } from "../webhooks/webhook-emitter.service.js";
+import { ScheduledWorkService } from "../scheduled-work.service.js";
 
 const reviewSyncStatusKey = "reviewSyncStatus";
 const reviewSyncIntervalMs = 60 * 60 * 1000;
@@ -30,7 +31,7 @@ type ReviewSyncStatus = {
 };
 
 @Injectable()
-export class GoogleReviewSyncService implements OnModuleDestroy {
+export class GoogleReviewSyncService implements OnApplicationShutdown {
   private readonly semanticQueue = new Queue<SemanticJobData>(semanticQueueName, {
     connection: redisConnection()
   });
@@ -40,15 +41,20 @@ export class GoogleReviewSyncService implements OnModuleDestroy {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(CryptoService) private readonly crypto: CryptoService,
     @Inject(SettingsService) private readonly settings: SettingsService,
-    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService
+    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService,
+    @Inject(ScheduledWorkService) private readonly scheduled: ScheduledWorkService
   ) {}
 
-  async onModuleDestroy() {
+  async onApplicationShutdown() {
     await this.semanticQueue.close();
   }
 
   @Cron(CronExpression.EVERY_HOUR)
   async syncOnSchedule() {
+    return this.scheduled.run(() => this.runScheduledSync());
+  }
+
+  private async runScheduledSync() {
     if (process.env.REVIEW_SYNC_SCHEDULER_ENABLED === "false") {
       await this.writeStatus({
         ...emptyStatus("disabled"),

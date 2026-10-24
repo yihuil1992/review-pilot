@@ -9,6 +9,9 @@
 .cache
 security-reports
 agent-docs
+AGENTS.md
+**/*.private.*
+.github
 packages/db/src/generated
 review-pilot-state
 OWNER_PASSWORD.local.md

@@ -14,10 +14,12 @@ import { ExternalCommandProcessor } from "./integrations/external-command.proces
 import { ApiMaintenanceProcessor } from "./maintenance/api-maintenance.processor.js";
 import { WebhookEmitterService } from "./webhooks/webhook-emitter.service.js";
 import { WebhookProcessor } from "./webhooks/webhook.processor.js";
+import { ScheduledWorkService } from "./scheduled-work.service.js";
 
 @Module({
   imports: [ScheduleModule.forRoot()],
   providers: [
+    ScheduledWorkService,
     CodexSubscriptionEngine,
     CodexRuntimeWorkerService,
     CryptoService,

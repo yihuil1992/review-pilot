@@ -10,5 +10,6 @@ export * from "./api-maintenance-queue.js";
 export * from "./external-command-queue.js";
 export * from "./webhook-signature.js";
 export * from "./webhook-events.js";
+export * from "./webhook-destination.js";
 
 export * from "./trial-mode.js";

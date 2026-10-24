@@ -251,14 +251,15 @@ export function WebhookManager({ clients, demoMode }: { clients: WebhookClientOp
             </select>
           </div>
           <div className="field">
-            <label htmlFor="webhookUrl">HTTPS endpoint URL</label>
+            <label htmlFor="webhookUrl">Endpoint URL</label>
             <input
               id="webhookUrl"
               name="url"
               type="url"
               inputMode="url"
               placeholder="https://internal.example.com/webhooks/review-pilot"
-              pattern="https://.*"
+              pattern="https?://.*"
+              title="Use HTTPS. HTTP requires an explicit server-side allowlist."
               required
               disabled={!activeClients.length || busyActions.has("create")}
             />
@@ -402,13 +403,14 @@ function WebhookEndpointRow({
         <div className="webhook-endpoint-details">
           <form className="webhook-edit-form" onSubmit={save}>
             <div className="field">
-              <label htmlFor={`webhook-url-${endpoint.id}`}>HTTPS endpoint URL</label>
+              <label htmlFor={`webhook-url-${endpoint.id}`}>Endpoint URL</label>
               <input
                 id={`webhook-url-${endpoint.id}`}
                 name="url"
                 type="url"
                 inputMode="url"
-                pattern="https://.*"
+                pattern="https?://.*"
+                title="Use HTTPS. HTTP requires an explicit server-side allowlist."
                 defaultValue={endpoint.url}
                 required
                 disabled={endpointBusy}

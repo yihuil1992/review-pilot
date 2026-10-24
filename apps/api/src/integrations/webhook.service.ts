@@ -1,6 +1,6 @@
-import { ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy } from "@nestjs/common";
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, OnModuleDestroy } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
-import { requiredWebhookEventScope, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
+import { assertWebhookDestinationAllowed, requiredWebhookEventScope, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
 import { Queue } from "bullmq";
 import { randomBytes, randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
@@ -72,6 +72,7 @@ export class WebhookService implements OnModuleDestroy {
   }
 
   async createEndpoint(input: { apiClientId: string; url: string; events: string[] }) {
+    this.validateDestination(input.url);
     const client = await this.prisma.apiClient.findUnique({ where: { id: input.apiClientId } });
     if (!client || client.revokedAt) throw new ConflictException("API client is not active");
     const secret = `whsec_${randomBytes(32).toString("base64url")}`;
@@ -88,6 +89,7 @@ export class WebhookService implements OnModuleDestroy {
   }
 
   async updateEndpoint(id: string, input: { url?: string; events?: string[]; active?: boolean }) {
+    if (input.url !== undefined) this.validateDestination(input.url);
     const endpoint = await this.prisma.webhookEndpoint.update({
       where: { id },
       data: {
@@ -105,6 +107,11 @@ export class WebhookService implements OnModuleDestroy {
     const endpoint = await this.prisma.webhookEndpoint.update({ where: { id }, data: { secretEncrypted: this.crypto.encryptSecret(secret) } });
     await this.audit(endpoint.apiClientId, "integration.webhook.rotate-secret", "webhook-endpoint", endpoint.id);
     return { endpoint: safeEndpoint(endpoint), secret };
+  }
+
+  private validateDestination(url: string) {
+    try { assertWebhookDestinationAllowed(url, process.env.WEBHOOK_ALLOWED_HTTP_URLS); }
+    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : "Invalid webhook destination"); }
   }
 
   async emit(input: WebhookEventInput, apiClientId: string) {

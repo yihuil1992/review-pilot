@@ -1,0 +1,96 @@
+name: Container image
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+  packages: write
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Build portable image
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}-${ARCH}"
+          docker buildx build --load --provenance=false --platform "linux/${ARCH}" \
+            --build-arg "SOURCE_REVISION=$GITHUB_SHA" -t "$image" .
+          docker run --rm --network none --entrypoint node "$image" --version
+          docker run --rm --network none --entrypoint node "$image" --test scripts/deployment.test.mjs
+          docker run --rm --network none --entrypoint node "$image" scripts/container-smoke.mjs
+          test "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" = "$GITHUB_SHA"
+      - name: Require correctness and dependency checks before publishing
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/wait-release-checks.mjs
+      - name: Publish immutable architecture image
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}-${ARCH}"
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Publish multi-platform revision and current-main tags
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker buildx imagetools create -t "$image:sha-$GITHUB_SHA" \
+            "$image:sha-$GITHUB_SHA-amd64" "$image:sha-$GITHUB_SHA-arm64"
+          current="$(GH_TOKEN="$GITHUB_TOKEN" gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          if [ "$current" = "$GITHUB_SHA" ]; then
+            docker buildx imagetools create -t "$image:main" "$image:sha-$GITHUB_SHA"
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Notify the configured deployment platform
+        if: steps.publish.outputs.current == 'true'
+        env:
+          DEPLOY_WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEPLOY_WEBHOOK_URL" ]; then
+            echo 'Image published; no deployment webhook configured.'
+            exit 0
+          fi
+          test -n "$DEPLOY_WEBHOOK_TOKEN"
+          curl --fail --silent --show-error --connect-timeout 15 --max-time 60 \
+            --request POST --header "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN" \
+            "$DEPLOY_WEBHOOK_URL" >/dev/null

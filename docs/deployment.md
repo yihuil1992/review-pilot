@@ -1,6 +1,9 @@
 # Deployment
 
-Review Pilot has one codebase and two production profiles.
+Review Pilot has one codebase that can run in Docker or a persistent server environment.
+
+For portable container images, private production configuration and automatic
+deployment, see [Docker deployment](docker.md).
 
 For Railway, use the dedicated profile in [docs/railway.md](railway.md). It keeps the app on Railway-provided domains, uses Railway Postgres/Redis, proxies `/api/*` through the web service, and stores Codex auth on a persistent Railway volume.
 
