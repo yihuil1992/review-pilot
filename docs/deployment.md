@@ -71,6 +71,12 @@ When an internal management system calls `/api/v1`:
 
 Create and rotate machine credentials from the owner Settings UI after deployment. See [External API](external-api.md).
 
+## Production deployment reports
+
+The main image release registers a pending report on the PR whose merge commit exactly matches the released revision, then invokes the configured deployment webhook. `scripts/request-deployment.mjs` uses the job's short-lived `GITHUB_TOKEN` with `pull-requests: write`; it never prints the webhook URL, token or response. Existing marked bot comments are updated instead of adding another comment. A reporting error does not block the existing deployment request.
+
+Webhook acceptance is not deployment success. A separately configured deployment observer must update the report after checking the actual runtime revision, all required containers and health checks. It can use a GitHub App with contents-read and pull-requests-write access. The release job does not wait for that observer. Without an observer, the report stays pending/unconfirmed; no success is inferred. Install-specific mappings, credentials and state belong in private operational configuration, not this repository. Direct main commits without a uniquely associated merged PR still deploy but do not create a fabricated PR report.
+
 ## Backups
 
 Back up Postgres and the deployment secrets together.

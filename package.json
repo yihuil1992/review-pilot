@@ -27,7 +27,7 @@
     "db:deploy": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate deploy",
     "db:migrate": "node scripts/with-env.mjs pnpm --filter @review-pilot/db prisma migrate dev",
     "semantic:spike": "pnpm --filter @review-pilot/worker semantic:spike",
-    "test:deployment": "node --test scripts/deployment.test.mjs",
+    "test:deployment": "node --test scripts/deployment.test.mjs scripts/request-deployment.test.mjs",
     "security:scan": "node scripts/security-scan.mjs",
     "test:security": "node --test scripts/security-scan.test.mjs",
     "test:database": "pnpm db:generate && pnpm --filter @review-pilot/db build && node scripts/database-smoke.mjs"
