@@ -57,6 +57,13 @@ another stack mounts production data. Retain queue state and scheduler settings;
 do not replay completed jobs. Validate readiness and authenticated reads after an
 upgrade. A previous application image cannot undo database schema or business writes.
 
+Give the worker enough termination grace for its longest job. On shutdown it stops
+accepting scheduled work, drains active scheduled and queue tasks, and only then
+closes its database and producer queues. The example allows 15 minutes; a forced
+kill or host failure can still interrupt work. For production platforms that
+recreate every Compose service on deploy, manage PostgreSQL/Redis separately from
+the application release so job draining retains access to their state.
+
 ## Coolify and automatic deployment
 
 Choose **Docker Compose Empty** and paste your private production definition.

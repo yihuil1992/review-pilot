@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Inject, Injectable, OnApplicationShutdown } from "@nestjs/common";
 import { Prisma } from "@review-pilot/db";
 import { requiredWebhookEventScope, webhookJobNames, webhookQueueName, type WebhookDeliveryJobData, type WebhookEventInput } from "@review-pilot/shared";
 import { Queue } from "bullmq";
@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma.service.js";
 
 @Injectable()
-export class WebhookEmitterService implements OnModuleDestroy {
+export class WebhookEmitterService implements OnApplicationShutdown {
   private readonly queue = new Queue<WebhookDeliveryJobData>(webhookQueueName, { connection: redisConnection() });
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
@@ -80,7 +80,7 @@ export class WebhookEmitterService implements OnModuleDestroy {
     })));
   }
 
-  async onModuleDestroy() {
+  async onApplicationShutdown() {
     await this.queue.close();
   }
 }

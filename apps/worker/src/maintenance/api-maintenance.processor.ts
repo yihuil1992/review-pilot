@@ -1,13 +1,21 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../prisma.service.js";
+import { ScheduledWorkService } from "../scheduled-work.service.js";
 
 @Injectable()
 export class ApiMaintenanceProcessor {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ScheduledWorkService) private readonly scheduled: ScheduledWorkService
+  ) {}
 
   @Cron("0 3 * * *")
   async cleanup() {
+    return this.scheduled.run(() => this.runCleanup());
+  }
+
+  private async runCleanup() {
     const now = new Date();
     const operationCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const auditCutoff = new Date(now.getTime() - Number(process.env.API_AUDIT_RETENTION_DAYS ?? 180) * 24 * 60 * 60 * 1000);

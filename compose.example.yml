@@ -4,7 +4,7 @@ x-runtime: &runtime
   entrypoint: [sh, /app/scripts/production-entrypoint.sh]
   init: true
   restart: unless-stopped
-  stop_grace_period: 90s
+  stop_grace_period: 15m
 
 x-environment: &environment
   NODE_ENV: production

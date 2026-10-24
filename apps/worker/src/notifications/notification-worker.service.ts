@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, OnApplicationShutdown } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import {
   canSendReviewNotification,
@@ -15,11 +15,12 @@ import { PrismaService } from "../prisma.service.js";
 import { TwilioService } from "../twilio/twilio.service.js";
 import { ApiOperationTrackerService } from "../integrations/api-operation-tracker.service.js";
 import { WebhookEmitterService } from "../webhooks/webhook-emitter.service.js";
+import { ScheduledWorkService } from "../scheduled-work.service.js";
 
 const notifiableStatuses = [...notifiableReviewStatuses] as ReviewStatus[];
 
 @Injectable()
-export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy {
+export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy, OnApplicationShutdown {
   private readonly connection = redisConnection();
   private readonly queue = new Queue(notificationQueueName, {
     connection: this.connection
@@ -30,7 +31,8 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TwilioService) private readonly twilio: TwilioService,
     @Inject(ApiOperationTrackerService) private readonly operations: ApiOperationTrackerService,
-    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService
+    @Inject(WebhookEmitterService) private readonly webhooks: WebhookEmitterService,
+    @Inject(ScheduledWorkService) private readonly scheduled: ScheduledWorkService
   ) {}
 
   onModuleInit() {
@@ -47,11 +49,18 @@ export class NotificationWorkerService implements OnModuleInit, OnModuleDestroy 
 
   async onModuleDestroy() {
     await this.worker?.close();
+  }
+
+  async onApplicationShutdown() {
     await this.queue.close();
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async enqueueDueScan() {
+    return this.scheduled.run(() => this.runScheduledScan());
+  }
+
+  private async runScheduledScan() {
     if (process.env.NOTIFICATION_SCHEDULER_ENABLED === "false") {
       return;
     }
