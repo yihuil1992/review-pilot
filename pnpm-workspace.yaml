@@ -7,3 +7,7 @@ overrides:
   "@nestjs/platform-express@11.2.8>multer": "2.5.0"
 
   "@ts-morph/common@0.27.0>minimatch": "11.0.8"
+
+  # Pin patched MCP transport dependencies within the SDK's declared ranges.
+  "@modelcontextprotocol/sdk@1.32.1>hono": "4.13.19"
+  "@modelcontextprotocol/sdk@1.32.1>@hono/node-server": "2.1.8"
