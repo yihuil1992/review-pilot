@@ -21,7 +21,7 @@ const fixture = (name, version) => {
   return path;
 };
 const vulnerable = fixture('vulnerable', '15.5.19');
-const patched = fixture('patched', '15.5.28');
+const patched = fixture('patched', '15.5.29');
 const malformed = join(directory, 'malformed', 'pnpm-lock.yaml');
 mkdirSync(join(directory, 'malformed'));
 writeFileSync(malformed, 'lockfileVersion: [invalid yaml');
